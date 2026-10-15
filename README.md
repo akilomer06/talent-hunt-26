@@ -21,6 +21,9 @@ npm i
 npm run dev
 ```
 
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the Vercel frontend, Render API,
+Supabase production configuration, and local two-process setup.
+
 ## Built with
 
 - TanStack Start

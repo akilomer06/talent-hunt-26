@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:backend": "node --env-file=backend/.env.local --watch backend/server.mjs",
+    "start:backend": "node --env-file-if-exists=backend/.env.local backend/server.mjs",
+    "test:backend": "node --test backend/server.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

@@ -1,10 +1,28 @@
-import { createClient } from '@supabase/supabase-js';
 import { EVENTS as DEFAULT_EVENTS, type EventItem } from '../data/eventsData';
 
-export const SUPABASE_URL = 'https://spowdisyvuvaicasewdf.supabase.co';
-export const SUPABASE_ANON_KEY = 'sb_publishable_S6cUFCL68pSG_DlzQgoyZA_vubA2Y_E';
+const API_URL = (import.meta.env['VITE_API_URL'] || '').replace(/\/$/, '');
+const TOKEN_KEY = 'th26_admin_token';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = typeof window === 'undefined' ? null : sessionStorage.getItem(TOKEN_KEY);
+  const response = await fetch(API_URL + path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...options.headers },
+    signal: AbortSignal.timeout(30000),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'API request failed');
+  return data as T;
+}
+
+export async function loginAdmin(passcode: string): Promise<void> {
+  const { token } = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ passcode }) });
+  sessionStorage.setItem(TOKEN_KEY, token);
+}
+export function logoutAdmin(): void { sessionStorage.removeItem(TOKEN_KEY); }
+export async function checkBackendHealth(): Promise<boolean> {
+  try { await api('/api/health'); return true; } catch { return false; }
+}
 
 export interface TeamMember {
   name: string;
@@ -53,27 +71,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   googleFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSeE1heCwcf6SR22IGbva0CaDPljSZsOaNKwm1MakO6c6roA-A/viewform',
 };
 
-const REGISTRATIONS_CACHE_KEY = 'th26_registrations_cache';
 const EVENTS_CACHE_KEY = 'th26_events_cache';
 const SETTINGS_CACHE_KEY = 'th26_settings_cache';
-
-// Helper for local storage backup
-function getCachedRegistrations(): RegistrationRecord[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(REGISTRATIONS_CACHE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function setCachedRegistrations(list: RegistrationRecord[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(REGISTRATIONS_CACHE_KEY, JSON.stringify(list));
-  } catch {}
-}
 
 export function getCachedEvents(): EventItem[] {
   if (typeof window === 'undefined') return DEFAULT_EVENTS;
@@ -112,157 +111,47 @@ export function setCachedSettings(settings: SiteSettings) {
   } catch {}
 }
 
-/**
- * Submit student registration to Supabase + local cache backup
- */
-export async function submitRegistration(record: Omit<RegistrationRecord, 'id' | 'created_at'>): Promise<{ success: boolean; data?: any; error?: string }> {
-  const timestamp = new Date().toISOString();
-  const entry: RegistrationRecord = {
-    ...record,
-    created_at: timestamp,
-  };
-
-  // 1. Immediately cache locally
-  const current = getCachedRegistrations();
-  setCachedRegistrations([entry, ...current.filter((r) => r.reg_id !== entry.reg_id)]);
-
-  // 2. Insert into Supabase
-  try {
-    const { data, error } = await supabase.from('registrations').insert([
-      {
-        reg_id: entry.reg_id,
-        name: entry.name,
-        rrn: entry.rrn,
-        mobile: entry.mobile,
-        programme: entry.programme,
-        year: entry.year,
-        department: entry.department,
-        section: entry.section || '',
-        selected_events: entry.selected_events,
-        team_members: entry.team_members,
-        created_at: timestamp,
-      },
-    ]).select();
-
-    if (error) {
-      console.warn('Supabase insert note (cached locally):', error.message);
-      return { success: true, data: entry };
-    }
-
-    return { success: true, data };
-  } catch (err: any) {
-    console.warn('Network / Supabase write error, saved to local cache:', err);
-    return { success: true, data: entry };
-  }
+/** Submit registrations only when the backend confirms database persistence. */
+export async function submitRegistration(record: Omit<RegistrationRecord, 'id' | 'created_at'>): Promise<{ success: boolean; data: RegistrationRecord }> {
+  return api('/api/registrations', { method: 'POST', body: JSON.stringify(record) });
 }
 
-/**
- * Fetch all registrations from Supabase (falling back to cache)
- */
 export async function fetchRegistrations(): Promise<RegistrationRecord[]> {
-  const localList = getCachedRegistrations();
-
-  try {
-    const { data, error } = await supabase
-      .from('registrations')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && Array.isArray(data)) {
-      // Merge Supabase with local (deduplicating by reg_id)
-      const map = new Map<string, RegistrationRecord>();
-      for (const item of data) {
-        map.set(item.reg_id, item);
-      }
-      for (const item of localList) {
-        if (!map.has(item.reg_id)) {
-          map.set(item.reg_id, item);
-        }
-      }
-      const combined = Array.from(map.values());
-      setCachedRegistrations(combined);
-      return combined;
-    }
-  } catch (err) {
-    console.warn('Failed to fetch from Supabase, returning local cache:', err);
-  }
-
-  return localList;
+  return api('/api/registrations');
 }
 
-/**
- * Delete a registration from Supabase and cache
- */
 export async function deleteRegistration(regId: string): Promise<boolean> {
-  const current = getCachedRegistrations();
-  setCachedRegistrations(current.filter((r) => r.reg_id !== regId));
-
-  try {
-    await supabase.from('registrations').delete().eq('reg_id', regId);
-  } catch {}
-
+  await api('/api/registrations/' + encodeURIComponent(regId), { method: 'DELETE' });
   return true;
 }
 
-/**
- * Fetch dynamic site content overrides (events, venue, settings)
- */
 export async function fetchLiveSiteContent(): Promise<{ events: EventItem[]; settings: SiteSettings }> {
   let events = getCachedEvents();
   let settings = getCachedSettings();
-
   try {
-    const { data, error } = await supabase.from('site_content').select('*');
-    if (!error && Array.isArray(data)) {
-      for (const row of data) {
-        if (row.key === 'events' && Array.isArray(row.value) && row.value.length > 0) {
-          events = row.value;
-          setCachedEvents(events);
-        }
-        if (row.key === 'settings' && row.value) {
-          settings = { ...DEFAULT_SITE_SETTINGS, ...row.value };
-          setCachedSettings(settings);
-        }
+    const rows = await api<Array<{ key: string; value: unknown }>>('/api/content');
+    for (const row of rows) {
+      if (row.key === 'events' && Array.isArray(row.value) && row.value.length > 0) {
+        events = row.value as EventItem[];
+        setCachedEvents(events);
+      }
+      if (row.key === 'settings' && row.value && typeof row.value === 'object') {
+        settings = { ...DEFAULT_SITE_SETTINGS, ...row.value };
+        setCachedSettings(settings);
       }
     }
-  } catch (err) {
-    console.warn('Using cached site content:', err);
-  }
-
+  } catch (error) { console.warn('Using cached site content:', error); }
   return { events, settings };
 }
 
-/**
- * Save updated event items or site settings to Supabase
- */
 export async function saveLiveEvents(events: EventItem[]): Promise<boolean> {
+  await api('/api/content/events', { method: 'PUT', body: JSON.stringify(events) });
   setCachedEvents(events);
-
-  try {
-    const { error } = await supabase.from('site_content').upsert(
-      { key: 'events', value: events, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
-    if (error) console.warn('Supabase site_content note:', error.message);
-  } catch (err) {
-    console.warn('Supabase write error, cached locally:', err);
-  }
-
   return true;
 }
 
 export async function saveLiveSettings(settings: SiteSettings): Promise<boolean> {
+  await api('/api/content/settings', { method: 'PUT', body: JSON.stringify(settings) });
   setCachedSettings(settings);
-
-  try {
-    const { error } = await supabase.from('site_content').upsert(
-      { key: 'settings', value: settings, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
-    if (error) console.warn('Supabase site_content note:', error.message);
-  } catch (err) {
-    console.warn('Supabase write error, cached locally:', err);
-  }
-
   return true;
 }

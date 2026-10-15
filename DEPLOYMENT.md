@@ -1,0 +1,124 @@
+# Vercel frontend + Render backend + Supabase
+
+The browser loads the static TanStack Start SPA from Vercel, calls the Node API
+on Render, and the API reads/writes Supabase. No Supabase key is needed in Vercel.
+The generated `dist/server` is used during the frontend build only; deploy
+`dist/client` to Vercel. SPA mode requires JavaScript to display page content.
+
+## Local development
+
+Use Node 24. From the `talent-hunt-26` project directory:
+
+```powershell
+npm ci
+Copy-Item .env.example .env.local
+Copy-Item backend/.env.example backend/.env.local
+```
+
+In `.env.local`, set `VITE_API_URL=` (empty) to use the Vite proxy. In
+`backend/.env.local`, set a private `ADMIN_PASSCODE` and random `SESSION_SECRET`.
+These local files are ignored by Git. The current local setup is already configured;
+do not overwrite it unless you intend to reset the values.
+
+Run these in two terminals:
+
+```powershell
+npm run dev:backend
+```
+
+```powershell
+npm run dev -- --host 127.0.0.1 --port 3000
+```
+
+Frontend: http://127.0.0.1:3000. API health: http://127.0.0.1:4000/api/health.
+The development proxy forwards `/api` from port 3000 to port 4000.
+
+## Production Supabase setup
+
+The existing `registrations` and `site_content` tables already respond. Do not
+rerun the imported `supabase-schema.sql` on the existing project: it grants public
+access. Its public policies allow direct requests to bypass API authentication.
+
+1. Obtain a **secret key** (or legacy `service_role` key) from Supabase project
+   settings. Set it as `SUPABASE_SECRET_KEY` on Render only. Never prefix it with
+   `VITE_` or put it in Vercel/browser code.
+2. Run `backend/secure-policies.sql` in the Supabase SQL Editor. It revokes browser
+   table access and removes the imported permissive policies while retaining API
+   access via the server-only key. Existing rows are preserved.
+3. Confirm `/api/health` returns `{"status":"ok","database":"connected"}`.
+
+Until this migration is applied, the provided publishable key works with the
+existing public policies for local development, but participant records remain
+publicly accessible through Supabase. The migration has not been applied remotely.
+
+## Render backend
+
+Push the code to your repository, then create a Render Blueprint from `render.yaml`.
+If this project is a subdirectory of the repository, select the Blueprint path
+`talent-hunt-26/render.yaml` and set the service Root Directory to `talent-hunt-26`.
+If it is the repository root, use `render.yaml` and leave Root Directory blank.
+
+Alternatively create a Node Web Service with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm ci --omit=dev` |
+| Start command | `npm run start:backend` |
+| Health check | `/api/health` |
+| Node version | `24` |
+
+Set these environment variables (the Blueprint supplies the Supabase URL and
+publishable key and generates `SESSION_SECRET`):
+
+| Variable | Value |
+| --- | --- |
+| `SUPABASE_URL` | `https://spowdisyvuvaicasewdf.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | The supplied publishable key |
+| `SUPABASE_SECRET_KEY` | Supabase secret key, server only |
+| `ADMIN_PASSCODE` | A private passcode of your choice |
+| `SESSION_SECRET` | Long random secret; Blueprint generates it |
+| `FRONTEND_URL` | Exact Vercel origin, e.g. `https://your-site.vercel.app` |
+
+Render supplies `PORT`; the server binds to `0.0.0.0`. `FRONTEND_URL` accepts
+comma-separated exact origins, without trailing slashes. Add a custom domain or
+an individual Vercel preview origin explicitly if needed. No wildcard is enabled.
+If the frontend URL is unknown during setup, deploy Vercel first to obtain it,
+then set `FRONTEND_URL` and redeploy Render.
+
+## Vercel frontend
+
+Import the same repository and set Root Directory to this project folder.
+The committed `vercel.json` configures:
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | Other |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| Output directory | `dist/client` |
+| Node version | 24.x |
+| `VITE_API_URL` | Your Render origin, e.g. `https://your-backend.onrender.com` |
+
+Set `VITE_API_URL` before the final build. It must include `https://` and must not
+include `/api`. Redeploy Vercel after changing it because Vite embeds the value
+at build time. The static fallback to `/_shell.html` supports refreshed deep links
+such as `/register`, `/admin`, and `/events/code-break`.
+
+Suggested order: create Vercel project to obtain its domain, deploy Render with
+that `FRONTEND_URL`, then set `VITE_API_URL` in Vercel and redeploy. Verify public
+content, a registration, and admin sign-in after both services are deployed.
+
+## Verification
+
+```powershell
+npm test
+npm run test:backend
+npm run build
+```
+
+The API tests use a mock database and check authentication, CORS, validation,
+registration writes and database failures without changing Supabase records.
+
+Hosting references: [Vercel Vite deployment](https://vercel.com/docs/frameworks/frontend/vite),
+[Render web service setup](https://render.com/docs/deploy-node-express-app), and
+[TanStack SPA mode](https://tanstack.com/start/latest/docs/framework/react/guide/spa-mode).

@@ -196,12 +196,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
         selected_events: selected,
         team_members: team,
       });
-    } catch (err) {
-      console.warn('Submission handled:', err);
-    } finally {
-      setSubmitting(false);
       setSubmitted(true);
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 

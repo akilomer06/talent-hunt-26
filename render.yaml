@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: talent-hunt-api
+    runtime: node
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run start:backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://spowdisyvuvaicasewdf.supabase.co
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_S6cUFCL68pSG_DlzQgoyZA_vubA2Y_E
+      - key: FRONTEND_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: ADMIN_PASSCODE
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true

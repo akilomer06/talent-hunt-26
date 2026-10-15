@@ -39,7 +39,9 @@ import {
   type RegistrationRecord,
   type SiteSettings,
   DEFAULT_SITE_SETTINGS,
-  supabase,
+  loginAdmin,
+  logoutAdmin,
+  checkBackendHealth,
 } from '../lib/supabase';
 import { type EventItem, EVENTS as INITIAL_EVENTS } from '../data/eventsData';
 
@@ -47,7 +49,7 @@ interface AdminPageProps {
   onBack: () => void;
 }
 
-const ADMIN_PASSCODE = 'admin2k26';
+
 
 export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   // Always enforce LIGHT THEME inside the Admin Portal
@@ -73,10 +75,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   }, []);
 
   // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem('th26_admin_auth') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  useEffect(() => { setIsAuthenticated(!!sessionStorage.getItem('th26_admin_token')); }, []);
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
 
@@ -122,8 +122,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       setEventDraft(currentDraft);
 
       // Check DB connection
-      const { error } = await supabase.from('registrations').select('count', { count: 'exact', head: true });
-      setDbConnected(!error);
+      setDbConnected(await checkBackendHealth());
     } catch {
       setDbConnected(false);
     } finally {
@@ -139,20 +138,20 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   }, [isAuthenticated]);
 
   // Auth handler
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === ADMIN_PASSCODE || passcode === '2k26' || passcode === 'crescent') {
+    try {
+      await loginAdmin(passcode);
       setIsAuthenticated(true);
-      sessionStorage.setItem('th26_admin_auth', 'true');
       setAuthError('');
-    } else {
-      setAuthError('Incorrect passcode. Use: admin2k26');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Unable to sign in');
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem('th26_admin_auth');
+    logoutAdmin();
   };
 
   // Event Selection in editor
@@ -165,28 +164,34 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setSaveStatus(null);
   };
 
-  // Save Event Changes
   const handleSaveEvent = async () => {
     const updatedEvents = events.map((e) => (e.id === eventDraft.id ? eventDraft : e));
-    setEvents(updatedEvents);
-    await saveLiveEvents(updatedEvents);
-    setSaveStatus({ message: `"${eventDraft.title}" saved & updated on live website!`, type: 'success' });
-    setTimeout(() => setSaveStatus(null), 4000);
+    try {
+      await saveLiveEvents(updatedEvents);
+      setEvents(updatedEvents);
+      setSaveStatus({ message: 'Event saved on the live website.', type: 'success' });
+    } catch (error) {
+      setSaveStatus({ message: error instanceof Error ? error.message : 'Save failed', type: 'error' });
+    }
   };
 
-  // Save Site Settings Changes
   const handleSaveSettings = async () => {
-    setSettings(settingsDraft);
-    await saveLiveSettings(settingsDraft);
-    setSaveStatus({ message: 'General website information updated on live site!', type: 'success' });
-    setTimeout(() => setSaveStatus(null), 4000);
+    try {
+      await saveLiveSettings(settingsDraft);
+      setSettings(settingsDraft);
+      setSaveStatus({ message: 'Website information saved.', type: 'success' });
+    } catch (error) {
+      setSaveStatus({ message: error instanceof Error ? error.message : 'Save failed', type: 'error' });
+    }
   };
 
-  // Delete registration
   const handleDeleteRegistration = async (regId: string, name: string) => {
-    if (window.confirm(`Delete registration for "${name}" (${regId})?`)) {
+    if (!window.confirm('Delete registration for ' + name + ' (' + regId + ')?')) return;
+    try {
       await deleteRegistration(regId);
       setRegistrations((prev) => prev.filter((r) => r.reg_id !== regId));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Delete failed');
     }
   };
 
@@ -325,7 +330,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 required
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode (admin2k26)"
+                placeholder="Enter admin passcode"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all font-mono"
                 autoFocus
               />
@@ -349,7 +354,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-400">Default passcode: <strong className="text-slate-600 font-mono">admin2k26</strong></p>
+            <p className="text-xs text-slate-400">Use the passcode provided by your site administrator.</p>
           </div>
         </div>
       </div>
@@ -1264,88 +1269,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             </div>
 
             <div className="space-y-3 text-xs leading-relaxed text-slate-600">
-              <p>
-                To enable permanent cloud storage for all student registrations and dynamic card updates, paste this SQL query into your{' '}
-                <a
-                  href="https://supabase.com/dashboard/project/spowdisyvuvaicasewdf/sql/new"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-amber-600 hover:underline inline-flex items-center gap-1"
-                >
-                  Supabase SQL Editor <ExternalLink className="w-3 h-3" />
-                </a>{' '}
-                and click <strong>Run</strong>.
-              </p>
-
-              <div className="relative">
-                <pre className="p-4 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-xl overflow-x-auto max-h-72">
-{`-- 1. Create table for Participant Registrations
-CREATE TABLE IF NOT EXISTS public.registrations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  reg_id TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  rrn TEXT NOT NULL,
-  mobile TEXT NOT NULL,
-  programme TEXT NOT NULL,
-  year TEXT NOT NULL,
-  department TEXT NOT NULL,
-  section TEXT DEFAULT '',
-  selected_events JSONB NOT NULL DEFAULT '[]'::jsonb,
-  team_members JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public all on registrations" ON public.registrations FOR ALL TO public USING (true) WITH CHECK (true);
-
--- 2. Create table for Live Site Content Management
-CREATE TABLE IF NOT EXISTS public.site_content (
-  key TEXT PRIMARY KEY,
-  value JSONB NOT NULL DEFAULT '{}'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public all on site_content" ON public.site_content FOR ALL TO public USING (true) WITH CHECK (true);`}
-                </pre>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(`CREATE TABLE IF NOT EXISTS public.registrations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  reg_id TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  rrn TEXT NOT NULL,
-  mobile TEXT NOT NULL,
-  programme TEXT NOT NULL,
-  year TEXT NOT NULL,
-  department TEXT NOT NULL,
-  section TEXT DEFAULT '',
-  selected_events JSONB NOT NULL DEFAULT '[]'::jsonb,
-  team_members JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public all on registrations" ON public.registrations FOR ALL TO public USING (true) WITH CHECK (true);
-
-CREATE TABLE IF NOT EXISTS public.site_content (
-  key TEXT PRIMARY KEY,
-  value JSONB NOT NULL DEFAULT '{}'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public all on site_content" ON public.site_content FOR ALL TO public USING (true) WITH CHECK (true);`);
-                    alert('SQL script copied to clipboard!');
-                  }}
-                  className="absolute right-3 top-3 px-3 py-1 bg-white/10 hover:bg-white/20 text-white font-medium text-[11px] rounded transition-colors"
-                >
-                  Copy SQL
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-500">
-              <strong className="block text-slate-700 mb-1">Local Redundancy:</strong>
-              Registrations and edits are also immediately stored in local browser cache. Once the tables are created in Supabase, entries sync to the cloud database automatically.
+              <p>Registrations and content changes are saved through the site backend.</p>
+              <p>Connection status: {dbConnected ? 'Connected' : 'Unavailable. Contact the site administrator.'}</p>
             </div>
           </div>
         )}
