@@ -1727,10 +1727,7 @@ html.game body::after { opacity: .45; }
 .reg-kicker { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgb(var(--color-electric-blue)); margin-bottom: 12px; }
 .reg-head h1 { font-family: var(--font-display, inherit); font-weight: 900; letter-spacing: -.02em; }
 .reg-lede { margin-top: 14px; color: rgb(var(--color-ink-muted)); }
-.reg-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 56px; align-items: start; }
-.reg-qr { position: sticky; top: 120px; text-align: center; }
-.reg-qr img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; padding: 14px; border-radius: 16px; border: 1px solid rgb(var(--color-ink) / .12); }
-.reg-qr p { margin: 14px 0 6px; font-size: 13px; color: rgb(var(--color-ink-muted)); }
+.reg-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .reg-link { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 14px; color: rgb(var(--color-electric-blue)); border-bottom: 1.5px solid currentColor; padding-bottom: 2px; }
 .reg-card { background: rgb(var(--color-paper-soft)); border: 1px solid rgb(var(--color-ink) / .1); border-radius: 20px; padding: 36px; }
 .reg-section { border: 0; padding: 0 0 32px; margin: 0 0 32px; border-bottom: 1px solid rgb(var(--color-ink) / .1); }
@@ -1780,7 +1777,6 @@ html.game body::after { opacity: .45; }
 .reg-done-actions .reg-submit { flex: 1; }
 @media (max-width: 900px) {
   .reg-layout { grid-template-columns: 1fr; gap: 32px; }
-  .reg-qr { position: static; max-width: 240px; margin: 0 auto; }
 }
 @media (max-width: 560px) {
   .reg-page { padding-top: 104px; }

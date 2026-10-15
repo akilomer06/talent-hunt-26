@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Check, CheckCircle2, Download, Plus, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import qrAsset from '../assets/qr-code.png';
 import { submitRegistration } from '../lib/supabase';
 import { useLiveContent } from '../hooks/useLiveContent';
 import {
@@ -19,9 +18,6 @@ interface RegisterPageProps {
   initialEventId?: string;
   onBack: () => void;
 }
-
-const FORM_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSeE1heCwcf6SR22IGbva0CaDPljSZsOaNKwm1MakO6c6roA-A/viewform';
 
 interface Person {
   name: string;
@@ -228,20 +224,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
           <p className="reg-kicker">Registration · 26 October 2026</p>
           <h1>Register for Talent Hunt 2K26</h1>
           <p className="reg-lede">
-            Scan the QR or fill in the form below. Open to CSE, AI&amp;DS, IoT and Cybersecurity students. Bring your
+            Fill in the form below. Open to CSE, AI&amp;DS, IoT and Cybersecurity students. Bring your
             Crescent ID on the day.
           </p>
         </header>
 
         <div className="reg-layout">
-          <aside className="reg-qr">
-            <img src={qrAsset} alt="QR code for the Talent Hunt 2K26 registration form" />
-            <p>Scan with your phone camera</p>
-            <a href={FORM_URL} target="_blank" rel="noopener noreferrer" className="reg-link">
-              Open Google Form <ArrowUpRight className="w-4 h-4" />
-            </a>
-          </aside>
-
           <section className="reg-card">
             {!submitted ? (
               <form onSubmit={handleSubmit}>
