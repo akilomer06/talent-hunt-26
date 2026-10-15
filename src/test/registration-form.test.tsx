@@ -7,20 +7,40 @@ vi.mock('../hooks/useLiveContent', () => ({ useLiveContent: () => ({ events: EVE
 afterEach(cleanup);
 
 describe('dynamic event team form', () => {
-  it('opens one teammate, allows additions up to the maximum, and supports a separate second team', () => {
+  it('opens the required teammates for fixed-size events and supports a separate second team', () => {
     render(<RegisterPage initialEventId="code-break" onBack={() => {}} />);
     const code = screen.getByRole('region', { name: 'Code Break team' });
-    expect(within(code).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(1);
-    fireEvent.click(within(code).getByRole('button', { name: 'Add Code Break teammate' }));
-    fireEvent.click(within(code).getByRole('button', { name: 'Add Code Break teammate' }));
     expect(within(code).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(3);
+    expect(within(code).queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
     expect(within(code).queryByRole('button', { name: 'Add Code Break teammate' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Clue Code' }));
     expect(screen.getByRole('region', { name: 'Clue Code team' })).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Clue Code team' })).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Code Canvas' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'FIFA' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Code Break' }));
     expect(screen.queryByRole('region', { name: 'Code Break team' })).not.toBeInTheDocument();
+  });
+  it('starts at the minimum and adds or removes optional slots within the maximum', () => {
+    render(<RegisterPage initialEventId="bgmi" onBack={() => {}} />);
+    const team = screen.getByRole('region', { name: 'BGMI Championship team' });
+    expect(within(team).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(3);
+    fireEvent.click(within(team).getByRole('button', { name: 'Add BGMI Championship teammate' }));
+    expect(within(team).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(4);
+    expect(within(team).getByText('Optional substitute')).toBeInTheDocument();
+    expect(within(team).queryByRole('button', { name: 'Add BGMI Championship teammate' })).not.toBeInTheDocument();
+    fireEvent.click(within(team).getByRole('button', { name: 'Remove BGMI Championship teammate 4' }));
+    expect(within(team).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(3);
+    expect(within(team).queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
+  });
+  it('starts solo-capable events without teammates and allows adding and removing one', () => {
+    render(<RegisterPage initialEventId="code-canvas" onBack={() => {}} />);
+    const team = screen.getByRole('region', { name: 'Code Canvas team' });
+    expect(within(team).queryByRole('textbox')).not.toBeInTheDocument();
+    fireEvent.click(within(team).getByRole('button', { name: 'Add Code Canvas teammate' }));
+    expect(within(team).getAllByRole('textbox', { name: 'Name *' })).toHaveLength(1);
+    fireEvent.click(within(team).getByRole('button', { name: 'Remove Code Canvas teammate 1' }));
+    expect(within(team).queryByRole('textbox')).not.toBeInTheDocument();
   });
   it('shows no teammate fields for individual events', () => {
     render(<RegisterPage initialEventId="tech-talks" onBack={() => {}} />);

@@ -173,7 +173,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
     setNotice(blocked ? `You can pick only ${MAX_PER_CATEGORY} ${cat} events. Remove one to swap.` : '');
     setSelected(next);
     if (!blocked && !selected.includes(id) && (TEAM_RULES[id]?.max || 1) > 1) {
-      setTeams(current => ({ ...current, [id]: current[id] || [emptyPerson()] }));
+      setTeams(current => ({ ...current, [id]: current[id] || Array.from({ length: Math.max(0, (TEAM_RULES[id]?.min || 1) - 1) }, () => emptyPerson()) }));
     }
   };
 
@@ -299,7 +299,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                   {selectedEvents.map(event => {
                     const rule = TEAM_RULES[event.id];
                     if (!rule) return null;
-                    const members = teams[event.id] || [emptyPerson()];
+                    const minimumTeammates = rule.min - 1;
+                    const members = teams[event.id] || Array.from({ length: minimumTeammates }, () => emptyPerson());
                     const filled = members.filter(hasDetails).length;
                     const updateMembers = (next: Person[]) => setTeams(current => ({ ...current, [event.id]: next }));
                     return (
@@ -310,15 +311,15 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                             {rule.substitute && ' Four main players and one optional substitute.'}
                           </p>
                           <p className="reg-team-count">Teammates: min {rule.min - 1}, max {rule.max - 1} · {filled} added
-                            {rule.min === 1 && ' · Leave the first teammate blank to enter individually.'}
+                            {rule.min === 1 && ' · You can enter individually or add optional teammates below.'}
                           </p>
                           {members.map((person, index) => (
                             <div key={index} className="reg-member">
                               <div className="reg-member-head">
                                 <h4>{rule.substitute && index === rule.max - 2 ? 'Optional substitute' : 'Teammate ' + (index + 1)}</h4>
-                                {members.length > 1 && <button type="button" onClick={() => updateMembers(members.filter((_, i) => i !== index))} aria-label={'Remove ' + event.title + ' teammate ' + (index + 1)}><X className="w-4 h-4" /></button>}
+                                {index >= minimumTeammates && <button type="button" onClick={() => updateMembers(members.filter((_, i) => i !== index))} aria-label={'Remove ' + event.title + ' teammate ' + (index + 1)}><X className="w-4 h-4" /></button>}
                               </div>
-                              <PersonFields value={person} required={rule.min > 1 || members.length > 1 || hasDetails(person)} prefix={event.id + '-tm' + index}
+                              <PersonFields value={person} required prefix={event.id + '-tm' + index}
                                 onChange={next => updateMembers(members.map((value, i) => i === index ? next : value))} />
                             </div>
                           ))}
