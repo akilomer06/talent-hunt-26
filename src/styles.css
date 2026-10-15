@@ -1799,6 +1799,12 @@ html.game body::after { opacity: .45; }
 .reg-done dd { font-weight: 600; }
 .reg-done-actions { display: flex; gap: 12px; }
 .reg-done-actions .reg-submit { flex: 1; }
+.reg-community { margin-top: 28px; padding: 24px; text-align: left; border: 1px solid rgb(var(--color-electric-blue) / .25); border-radius: 16px; background: rgb(var(--color-electric-blue) / .06); }
+.reg-community h3 { font-size: 20px; font-weight: 800; color: rgb(var(--color-ink)); }
+.reg-community p { margin: 10px 0 18px; color: rgb(var(--color-ink-muted)); line-height: 1.7; font-size: 14px; }
+.reg-community a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 18px; background: #166534; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 700; }
+.reg-community a:hover { background: #14532d; }
+.reg-community a:focus-visible { outline: 2px solid rgb(var(--color-electric-blue)); outline-offset: 4px; }
 @media (max-width: 900px) {
   .reg-layout { grid-template-columns: 1fr; gap: 32px; }
 }

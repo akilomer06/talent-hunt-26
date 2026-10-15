@@ -375,6 +375,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                     New entry
                   </button>
                 </div>
+                <aside className="reg-community" aria-label="Event WhatsApp groups">
+                  <h3>Join your event groups</h3>
+                  <p>Your registration is confirmed! Open the WhatsApp link below and join the respective groups for your selected events to receive updates and instructions.</p>
+                  <a href="https://chat.whatsapp.com/BTP5Q9gmCLRLyXJvUVdQtE" target="_blank" rel="noopener noreferrer">
+                    Join on WhatsApp <ArrowUpRight className="w-4 h-4" />
+                  </a>
+                </aside>
               </div>
             )}
           </section>
