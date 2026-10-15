@@ -99,7 +99,8 @@ export function createApiServer(env = process.env, request = fetch) {
           if (setupError) return reply(503, { error: setupError });
         }
         const version = role === 'registration' ? await access.login(body.passcode) : '';
-        if ((role === 'admin' && !equal(body.passcode, env.ADMIN_PASSCODE)) || (role === 'registration' && !version)) return reply(401, { error: 'Incorrect passcode or registration-team access is disabled' });
+        if (role === 'admin' && !equal(body.passcode, env.ADMIN_PASSCODE)) return reply(401, { error: 'Incorrect main-admin passcode' });
+        if (role === 'registration' && !version) return reply(401, { error: 'Incorrect registration-team passcode or team access is disabled' });
         attempts.delete(attemptKey);
         const payload = Buffer.from(JSON.stringify({ role, exp: now + 8 * 60 * 60 * 1000, version })).toString('base64url');
         return reply(200, { token: payload + '.' + sign(payload), role });

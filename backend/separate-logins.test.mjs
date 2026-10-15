@@ -25,7 +25,9 @@ test('separate environment passcodes and retry counters for each portal', async 
     const teamSession = await team.json();
     assert.equal(teamSession.role, 'registration');
     assert.equal((await login('adminregistration', 'main-test-secret')).status, 401);
-    assert.equal((await login('admin', 'team-test-secret')).status, 401);
+    const wrongMain = await login('admin', 'team-test-secret');
+    assert.equal(wrongMain.status, 401);
+    assert.equal((await wrongMain.json()).error, 'Incorrect main-admin passcode');
     for (let i = 0; i < 9; i++) assert.equal((await login('adminregistration', 'wrong')).status, 401);
     const limited = await login('adminregistration', 'wrong');
     assert.equal(limited.status, 429);
