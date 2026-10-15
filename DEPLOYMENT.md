@@ -39,6 +39,12 @@ The existing `registrations` and `site_content` tables already respond. Do not
 rerun the imported `supabase-schema.sql` on the existing project: it grants public
 access. Its public policies allow direct requests to bypass API authentication.
 
+The original live registrations table lacks `section`. The API supports it by
+preserving the registrant's section alongside team members in JSON metadata and
+normalizing the admin response back to a section field and team-members array.
+Optionally run `backend/registration-schema-upgrade.sql` to add the column and
+promote that metadata into the column without losing existing registrations.
+
 1. Obtain a **secret key** (or legacy `service_role` key) from Supabase project
    settings. Set it as `SUPABASE_SECRET_KEY` on Render only. Never prefix it with
    `VITE_` or put it in Vercel/browser code.

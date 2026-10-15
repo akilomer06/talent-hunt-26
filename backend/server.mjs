@@ -26,8 +26,13 @@ export function createApiServer(env = process.env, request = fetch) {
       signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) {
-      console.error('Supabase request failed:', response.status, await response.text());
-      throw Object.assign(new Error('Database request failed'), { status: 502 });
+      const raw = await response.text();
+      let problem;
+      try { problem = JSON.parse(raw); } catch { problem = {}; }
+      console.error('Supabase request failed:', response.status, problem.code || 'unknown');
+      throw Object.assign(new Error('Database request failed'), {
+        status: 502, code: problem.code, databaseMessage: problem.message,
+      });
     }
     const text = await response.text();
     return text ? JSON.parse(text) : null;
@@ -82,12 +87,31 @@ export function createApiServer(env = process.env, request = fetch) {
           || !Array.isArray(body.team_members) || body.team_members.length > 20) return reply(400, { error: 'Invalid registration details' });
         const record = Object.fromEntries(fields.map(key => [key, body[key].trim()]));
         Object.assign(record, { section: typeof body.section === 'string' ? body.section.slice(0, 100) : '', selected_events: body.selected_events, team_members: body.team_members });
-        await database('registrations', { method: 'POST', body: JSON.stringify(record), headers: { Prefer: 'return=minimal' } });
+        const insert = value => database('registrations', { method: 'POST', body: JSON.stringify(value), headers: { Prefer: 'return=minimal' } });
+        try {
+          await insert(record);
+        } catch (error) {
+          // Older projects have JSONB team_members but no section column. The
+          // rejected insert wrote nothing, so retry with lossless JSON metadata.
+          if (error.code !== 'PGRST204' || !error.databaseMessage?.includes("'section'")) throw error;
+          const { section, ...legacy } = record;
+          if (section) legacy.team_members = { members: record.team_members, registrant_section: section };
+          await insert(legacy);
+        }
         return reply(201, { success: true, data: record });
       }
       const [expiry, signature] = (req.headers.authorization?.replace(/^Bearer /, '') || '').split('.');
       if (!expiry || Number(expiry) < Date.now() || !equal(signature, sign(expiry))) return reply(401, { error: 'Please sign in to the admin portal' });
-      if (path === '/api/registrations' && req.method === 'GET') return reply(200, await database('registrations?select=*&order=created_at.desc'));
+      if (path === '/api/registrations' && req.method === 'GET') {
+        const rows = await database('registrations?select=*&order=created_at.desc');
+        return reply(200, rows.map(row => {
+          const metadata = row.team_members;
+          if (metadata && !Array.isArray(metadata) && Array.isArray(metadata.members)) {
+            return { ...row, section: row.section || metadata.registrant_section || '', team_members: metadata.members };
+          }
+          return row;
+        }));
+      }
       if (path.startsWith('/api/registrations/') && req.method === 'DELETE') {
         await database(`registrations?reg_id=eq.${encodeURIComponent(decodeURIComponent(path.slice('/api/registrations/'.length)))}`, { method: 'DELETE' });
         return reply(200, { success: true });
