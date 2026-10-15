@@ -1,0 +1,14 @@
+# Visual refresh
+- [x] Refine event detail spacing using the reference, remove extra interior colours, and verify navigation and themes.
+- [x] Match the red-marked header and text-led opening, without hero imagery; retain brochure and live countdown.
+- [x] Refine Paper/Dark typography, opening, events and information pages; keep Game separate.
+- [x] Replace navigation with accessible overlay and update the corrected brochure everywhere.
+- [x] Verify all themes, phone/tablet/desktop layouts and key navigation flows.
+- [x] Remove header Crescent logo and organiser showcase; redesign footer.
+- [x] Separate technical and non-technical Game events and adapt the reference menu with working destinations.
+- [x] Upgrade Game mode with event-specific animated cards, a reactive cursor, neon motion and the official brochure; remove unnecessary boxes and verify navigation and reduced motion.
+- [x] Redesign hero, simplify institution banner, and improve title/poster balance.
+- [x] Create distinctive concise event cards and unframed filtering controls.
+- [x] Coordinate animations and verify navigation, mobile layout, and reduced motion.
+- [x] Restore original opening text and visible brochure with rearranged date/countdown details; verify opening actions.
+- [x] Undo the recoloured opening section: restore the warm cream, electric blue and vivid orange palette; verify light and dark modes.

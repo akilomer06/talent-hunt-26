@@ -1,0 +1,119 @@
+{
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
+    {
+      "src": "^/events/technical/?$",
+      "dest": "/events/technical/index.html"
+    },
+    {
+      "src": "^/events/non-technical/?$",
+      "dest": "/events/non-technical/index.html"
+    },
+    {
+      "src": "^/schedule/?$",
+      "dest": "/schedule/index.html"
+    },
+    {
+      "src": "^/register/?$",
+      "dest": "/register/index.html"
+    },
+    {
+      "src": "^/about/?$",
+      "dest": "/about/index.html"
+    },
+    {
+      "src": "^/venue/?$",
+      "dest": "/venue/index.html"
+    },
+    {
+      "src": "^/faqs/?$",
+      "dest": "/faqs/index.html"
+    },
+    {
+      "src": "^/coordinators/?$",
+      "dest": "/coordinators/index.html"
+    },
+    {
+      "src": "^/contact/?$",
+      "dest": "/contact/index.html"
+    },
+    {
+      "src": "^/privacy/?$",
+      "dest": "/privacy/index.html"
+    },
+    {
+      "src": "^/events/code-break/?$",
+      "dest": "/events/code-break/index.html"
+    },
+    {
+      "src": "^/events/code-canvas/?$",
+      "dest": "/events/code-canvas/index.html"
+    },
+    {
+      "src": "^/events/neural-nexus/?$",
+      "dest": "/events/neural-nexus/index.html"
+    },
+    {
+      "src": "^/events/binary-battle/?$",
+      "dest": "/events/binary-battle/index.html"
+    },
+    {
+      "src": "^/events/game-craft/?$",
+      "dest": "/events/game-craft/index.html"
+    },
+    {
+      "src": "^/events/tech-talks/?$",
+      "dest": "/events/tech-talks/index.html"
+    },
+    {
+      "src": "^/events/cyber-breach/?$",
+      "dest": "/events/cyber-breach/index.html"
+    },
+    {
+      "src": "^/events/prompt-pop/?$",
+      "dest": "/events/prompt-pop/index.html"
+    },
+    {
+      "src": "^/events/shutter-verse/?$",
+      "dest": "/events/shutter-verse/index.html"
+    },
+    {
+      "src": "^/events/clue-code/?$",
+      "dest": "/events/clue-code/index.html"
+    },
+    {
+      "src": "^/events/trashion/?$",
+      "dest": "/events/trashion/index.html"
+    },
+    {
+      "src": "^/events/the-voice-over/?$",
+      "dest": "/events/the-voice-over/index.html"
+    },
+    {
+      "src": "^/events/bgmi/?$",
+      "dest": "/events/bgmi/index.html"
+    },
+    {
+      "src": "^/events/fifa/?$",
+      "dest": "/events/fifa/index.html"
+    },
+    {
+      "src": "^/events/valorant/?$",
+      "dest": "/events/valorant/index.html"
+    },
+    {
+      "src": "^/events/bid-wars/?$",
+      "dest": "/events/bid-wars/index.html"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "status": 404,
+      "dest": "/404.html"
+    }
+  ]
+}
