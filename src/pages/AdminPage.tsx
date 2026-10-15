@@ -45,6 +45,7 @@ import {
   checkAdminSession,
 } from '../lib/supabase';
 import { RegistrationTeamAccess } from '../components/RegistrationTeamAccess';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { type EventItem, EVENTS as INITIAL_EVENTS } from '../data/eventsData';
 
 interface AdminPageProps {
@@ -116,6 +117,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   const [selectedEventFilter, setSelectedEventFilter] = useState('all');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [registrationToDelete, setRegistrationToDelete] = useState<RegistrationRecord | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // Editor states
   const defaultEvent = INITIAL_EVENTS[0]!;
@@ -208,14 +212,20 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
     }
   };
 
-  const handleDeleteRegistration = async (regId: string, name: string) => {
-    if (!window.confirm('Delete registration for ' + name + ' (' + regId + ')?')) return;
+  const handleDeleteRegistration = async () => {
+    if (!registrationToDelete || deletingId || registrationOnly) return;
+    const { reg_id: regId, name } = registrationToDelete;
+    setDeletingId(regId);
+    setDeleteError('');
     try {
       await deleteRegistration(regId);
       setRegistrations((prev) => prev.filter((r) => r.reg_id !== regId));
+      setExpandedRow(current => current === regId ? null : current);
+      setRegistrationToDelete(null);
+      setSaveStatus({ message: `${name} (${regId}) was deleted from the database.`, type: 'success' });
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Delete failed');
-    }
+      setDeleteError(error instanceof Error ? error.message : 'Delete failed. The registration has not been removed.');
+    } finally { setDeletingId(null); }
   };
 
   // Export to CSV
@@ -388,6 +398,23 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col">
+      {!registrationOnly && <AlertDialog open={!!registrationToDelete} onOpenChange={open => { if (!open && !deletingId) { setRegistrationToDelete(null); setDeleteError(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this registration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently remove {registrationToDelete?.name} ({registrationToDelete?.reg_id}) and their event/team details from the database? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && <p role="alert" className="text-sm text-red-700">{deleteError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingId}>Keep registration</AlertDialogCancel>
+            <AlertDialogAction disabled={!!deletingId} className="bg-red-700 text-white hover:bg-red-800" onClick={event => { event.preventDefault(); void handleDeleteRegistration(); }}>
+              {deletingId ? 'Deleting…' : 'Delete permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>}
       {/* Top Navbar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -924,11 +951,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                               </td>
                               {!registrationOnly && <td className="py-3 px-4 text-right">
                                 <button
-                                  onClick={() => handleDeleteRegistration(r.reg_id, r.name)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                                  onClick={() => { setDeleteError(''); setRegistrationToDelete(r); }}
+                                  disabled={!!deletingId}
+                                  aria-label={`Delete registration ${r.reg_id}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-red-700 font-semibold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                                   title="Delete entry"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
                                 </button>
                               </td>}
                             </tr>

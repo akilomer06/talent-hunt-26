@@ -162,8 +162,13 @@ export function createApiServer(env = process.env, request = fetch) {
         }));
       }
       if (path.startsWith('/api/registrations/') && req.method === 'DELETE') {
-        await database(`registrations?reg_id=eq.${encodeURIComponent(decodeURIComponent(path.slice('/api/registrations/'.length)))}`, { method: 'DELETE' });
-        return reply(200, { success: true });
+        const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
+        if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
+        const removed = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=reg_id`, {
+          method: 'DELETE', headers: { Prefer: 'return=representation' },
+        });
+        if (!Array.isArray(removed) || removed.length === 0) return reply(404, { error: 'Registration was not found or could not be deleted. Refresh the list and try again.' });
+        return reply(200, { success: true, reg_id: regId });
       }
       if (['/api/content/events', '/api/content/settings'].includes(path) && req.method === 'PUT') {
         if ((path.endsWith('/events') && !Array.isArray(body)) || (path.endsWith('/settings') && (!body || Array.isArray(body) || typeof body !== 'object'))) return reply(400, { error: 'Invalid content' });
