@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { validateEventTeams } from '../shared/registrationRules.ts';
 
 export function createApiServer(env = process.env, request = fetch) {
   const origins = (env.FRONTEND_URL || 'http://127.0.0.1:3000,http://localhost:3000').split(',').map(s => s.trim());
@@ -82,9 +83,11 @@ export function createApiServer(env = process.env, request = fetch) {
       if (path === '/api/registrations' && req.method === 'POST') {
         const fields = ['reg_id', 'name', 'rrn', 'mobile', 'programme', 'year', 'department'];
         if (!fields.every(key => typeof body?.[key] === 'string' && body[key].trim().length > 0 && body[key].length <= 200)
-          || !Array.isArray(body.selected_events) || body.selected_events.length < 1 || body.selected_events.length > 4
+          || !Array.isArray(body.selected_events) || body.selected_events.length < 1 || body.selected_events.length > 2
           || !body.selected_events.every(value => typeof value === 'string' && value.length <= 100)
           || !Array.isArray(body.team_members) || body.team_members.length > 20) return reply(400, { error: 'Invalid registration details' });
+        const teamError = validateEventTeams(body.selected_events, body.team_members, body.rrn);
+        if (teamError) return reply(400, { error: teamError });
         const record = Object.fromEntries(fields.map(key => [key, body[key].trim()]));
         Object.assign(record, { section: typeof body.section === 'string' ? body.section.slice(0, 100) : '', selected_events: body.selected_events, team_members: body.team_members });
         const insert = value => database('registrations', { method: 'POST', body: JSON.stringify(value), headers: { Prefer: 'return=minimal' } });

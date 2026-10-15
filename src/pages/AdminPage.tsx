@@ -228,7 +228,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
       `"${r.section || ''}"`,
       `"${r.selected_events.map((id) => events.find((e) => e.id === id)?.title || id).join(', ')}"`,
       `"${r.team_members?.length || 0}"`,
-      `"${(r.team_members || []).map((m) => `${m.name} (${m.rrn}${m.section ? ` Sec ${m.section}` : ''})`).join('; ')}"`,
+      `"${(r.team_members || []).map((m) => `${m.event_id ? (events.find(event => event.id === m.event_id)?.title || m.event_id) + ": " : ""}${m.name} (${m.rrn}${m.section ? ` Sec ${m.section}` : ''})`).join('; ')}"`,
       `"${r.created_at ? new Date(r.created_at).toLocaleString() : ''}"`,
     ]);
 
@@ -255,7 +255,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     });
 
     registrations.forEach((r) => {
-      totalParticipants += 1 + (r.team_members?.length || 0);
+      totalParticipants += new Set([r.rrn, ...(r.team_members || []).map(member => member.rrn)].map(rrn => rrn.trim().toLowerCase())).size;
       deptCounts[r.department] = (deptCounts[r.department] || 0) + 1;
       yearCounts[r.year] = (yearCounts[r.year] || 0) + 1;
       r.selected_events.forEach((evId) => {
@@ -918,6 +918,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                                       {r.team_members.map((tm, idx) => (
                                         <div key={idx} className="bg-white p-3 rounded-lg border border-slate-200 text-xs space-y-0.5">
                                           <p className="font-semibold text-slate-900">#{idx + 1} {tm.name}</p>
+                                          {tm.event_id && <p className="text-amber-700 font-medium">{events.find(event => event.id === tm.event_id)?.title || tm.event_id}</p>}
                                           <p className="text-slate-500 font-mono text-[11px]">RRN: {tm.rrn}</p>
                                           <p className="text-slate-500 font-mono text-[11px]">Phone: {tm.mobile}</p>
                                           <p className="text-slate-600 text-[11px]">

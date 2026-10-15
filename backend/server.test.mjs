@@ -29,7 +29,15 @@ test('API enforces origins, authentication, validation and database errors', asy
     assert.equal((await fetch(base + '/api/registrations', { headers: { Authorization: 'Bearer ' + token + 'x' } })).status, 401);
     assert.equal((await fetch(base + '/api/registrations', { headers: { Authorization: 'Bearer ' + token } })).status, 200);
     assert.equal((await fetch(base + '/api/registrations', { method: 'POST', body: '{}' })).status, 400);
-    const record = { reg_id: 'TEST', name: 'Test', rrn: '123', mobile: '1234567890', programme: 'BTech', year: '1', department: 'CSE', selected_events: ['code-break'], team_members: [], id: 'must-not-forward' };
+    const record = { reg_id: 'TEST', name: 'Test', rrn: '123', mobile: '1234567890', programme: 'BTech', year: '1', department: 'CSE', selected_events: ['tech-talks'], team_members: [], id: 'must-not-forward' };
+    const beforeInvalid = calls.length;
+    const sameCategory = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, selected_events: ['tech-talks', 'code-canvas'] }) });
+    assert.equal(sameCategory.status, 400);
+    assert.match((await sameCategory.json()).error, /one technical/);
+    const incompleteTeam = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, selected_events: ['code-break'] }) });
+    assert.equal(incompleteTeam.status, 400);
+    assert.match((await incompleteTeam.json()).error, /exactly 4/);
+    assert.equal(calls.length, beforeInvalid);
     assert.equal((await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify(record) })).status, 201);
     assert.equal(JSON.parse(calls.at(-1).options.body).id, undefined);
     databaseFails = true;

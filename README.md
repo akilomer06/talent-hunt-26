@@ -26,6 +26,11 @@ Supabase production configuration, and local two-process setup.
 
 ## Built with
 
+Registration allows up to one event per category. `shared/registrationRules.ts`
+defines each event's participant limits (including the registrant), shared by
+the frontend and Render API. Teammates are stored with `event_id` so selected
+events can have different rosters, and the admin view and CSV identify the event.
+
 - TanStack Start
 - TypeScript
 - React

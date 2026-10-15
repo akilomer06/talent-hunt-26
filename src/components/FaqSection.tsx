@@ -5,7 +5,7 @@ import { Plus, Minus, ArrowRight } from 'lucide-react';
 const FAQS = [
   { q: 'Who can take part?', a: 'TALENT HUNT 2K26 is only for students of the Department of CSE, B.S. Abdur Rahman Crescent Institute of Science & Technology.' },
   { q: 'When and where is it?', a: 'Monday, 26 October 2026, at the Crescent campus. Each event page lists its own venue.' },
-  { q: 'How many events can I join?', a: 'There are 16 events — technical and non-technical. You can join more than one, as long as the timings do not clash.' },
+  { q: 'How many events can I join?', a: 'You can register for up to one technical and one non-technical event, as long as their timings do not clash.' },
   { q: 'What are the team sizes?', a: 'It depends on the event. Open any event page to see its team size, rules and judging criteria.' },
   { q: 'How do I register?', a: 'Use the Register button on the site or on any event page. Registration details will be announced by the coordinators.' },
   { q: 'Is there a registration fee?', a: 'Any fee details will be shared by the coordinators along with the official registration link.' },

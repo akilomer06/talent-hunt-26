@@ -1,8 +1,9 @@
-export const MAX_PER_CATEGORY = 2;
+export const MAX_PER_CATEGORY = 1;
+export { TEAM_RULES, validateEventTeams } from '../../shared/registrationRules';
 
 export type EventCategory = 'technical' | 'non-technical';
 
-/** Toggle an event while allowing at most two technical and two non-technical picks. */
+/** Toggle an event while allowing at most one pick in each category. */
 export function toggleEventSelection(
   selected: string[],
   eventId: string,

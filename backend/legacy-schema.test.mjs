@@ -17,7 +17,7 @@ test('legacy schema saves registrations and preserves sections and team members'
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const record = { reg_id: 'TEST', name: 'Test', rrn: '123', mobile: '0000000000', programme: 'B.Tech', year: 'II', department: 'CSE', section: 'B', selected_events: ['code-break'], team_members: [{ name: 'Teammate', section: 'A' }] };
+  const record = { reg_id: 'TEST', name: 'Test', rrn: '123', mobile: '0000000000', programme: 'B.Tech', year: 'II', department: 'CSE', section: 'B', selected_events: ['code-canvas'], team_members: [{ event_id: 'code-canvas', name: 'Teammate', rrn: '456', mobile: '0000000000', programme: 'B.Tech', year: 'II', department: 'CSE', section: 'A' }] };
   try {
     const response = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify(record) });
     assert.equal(response.status, 201);

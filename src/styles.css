@@ -1757,6 +1757,10 @@ html.game body::after { opacity: .45; }
 .reg-event.is-on .reg-tick { background: rgb(var(--color-electric-blue)); border-color: rgb(var(--color-electric-blue)); color: rgb(var(--color-paper-soft)); }
 .reg-notice { margin-top: 14px; font-size: 13px; font-weight: 600; color: rgb(var(--color-vivid-orange)); }
 .reg-member { padding: 20px; border-radius: 14px; background: rgb(var(--color-paper)); border: 1px solid rgb(var(--color-ink) / .08); margin-bottom: 14px; }
+.reg-team { margin-top: 28px; padding-top: 22px; border-top: 1px solid rgb(var(--color-ink) / .12); }
+.reg-team-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.reg-team-count { font-size: 13px; font-weight: 600; margin: 8px 0 18px; color: rgb(var(--color-electric-blue)); }
+.reg-member-head h4 { font-weight: 700; font-size: 15px; }
 .reg-member-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .reg-member-head h3 { font-weight: 700; font-size: 15px; }
 .reg-member-head button { color: rgb(var(--color-ink-muted)); padding: 4px; border-radius: 6px; }

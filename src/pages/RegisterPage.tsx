@@ -11,6 +11,8 @@ import {
   hasSection,
   getSectionsForDepartment,
   toggleEventSelection,
+  TEAM_RULES,
+  validateEventTeams,
   type EventCategory,
 } from '../lib/registration';
 
@@ -150,7 +152,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
   const { events, settings } = useLiveContent();
   const [me, setMe] = useState<Person>(emptyPerson);
   const [selected, setSelected] = useState<string[]>(initialEventId ? [initialEventId] : []);
-  const [team, setTeam] = useState<Person[]>([]);
+  const [teams, setTeams] = useState<Record<string, Person[]>>({});
+  const hasDetails = (person: Person) => Object.values(person).some(value => value.trim().length > 0);
+  const team = selected.flatMap(id => (teams[id] || []).filter(hasDetails).map(person => ({ ...person, event_id: id })));
+  const selectedEvents = events.filter(event => selected.includes(event.id));
   const [notice, setNotice] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -167,6 +172,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
     const cat = categoryOf(id) === 'technical' ? 'technical' : 'non-technical';
     setNotice(blocked ? `You can pick only ${MAX_PER_CATEGORY} ${cat} events. Remove one to swap.` : '');
     setSelected(next);
+    if (!blocked && !selected.includes(id) && (TEAM_RULES[id]?.max || 1) > 1) {
+      setTeams(current => ({ ...current, [id]: current[id] || [emptyPerson()] }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,6 +183,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
       setNotice('Pick at least one event.');
       return;
     }
+    const teamError = validateEventTeams(selected, team, me.rrn);
+    if (teamError) { setNotice(teamError); return; }
+    setNotice('');
     const newId = `TH26-${Math.floor(1000 + Math.random() * 9000)}`;
     setRegId(newId);
     setSubmitting(true);
@@ -204,7 +215,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
   const reset = () => {
     setMe(emptyPerson());
     setSelected([]);
-    setTeam([]);
+    setTeams({});
     setSubmitted(false);
   };
 
@@ -244,7 +255,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                   <legend>
                     <b>02</b> Events
                   </legend>
-                  <p className="reg-hint">Up to {MAX_PER_CATEGORY} technical and {MAX_PER_CATEGORY} non-technical.</p>
+                  <p className="reg-hint">Choose up to one technical and one non-technical event.</p>
                   {groups.map((g) => {
                     const list = events.filter((e) => e.category === g.key);
                     const count = selected.filter((id) => categoryOf(id) === g.key).length;
@@ -278,44 +289,50 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                       </div>
                     );
                   })}
-                  {notice && (
-                    <p className="reg-notice" role="status">
-                      {notice}
-                    </p>
-                  )}
+
                 </fieldset>
 
                 <fieldset className="reg-section">
-                  <legend>
-                    <b>03</b> Team members <em>optional · team events only</em>
-                  </legend>
-                  {team.map((p, i) => (
-                    <div key={i} className="reg-member">
-                      <div className="reg-member-head">
-                        <h3>Team member {i + 1}</h3>
-                        <button
-                          type="button"
-                          onClick={() => setTeam(team.filter((_, j) => j !== i))}
-                          aria-label={`Remove team member ${i + 1}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <PersonFields
-                        value={p}
-                        required
-                        prefix={`tm${i}`}
-                        onChange={(np) => setTeam(team.map((x, j) => (j === i ? np : x)))}
-                      />
-                    </div>
-                  ))}
-                  {team.length < 2 && (
-                    <button type="button" className="reg-add" onClick={() => setTeam([...team, emptyPerson()])}>
-                      <Plus className="w-4 h-4" /> Add team member {team.length + 1}
-                    </button>
-                  )}
+                  <legend><b>03</b> Event teams</legend>
+                  <p className="reg-hint">Your details above count as the first participant in each event. Add teammates separately for each selected event.</p>
+                  {selectedEvents.length === 0 && <p className="reg-hint">Select an event to see its team requirements.</p>}
+                  {selectedEvents.map(event => {
+                    const rule = TEAM_RULES[event.id];
+                    if (!rule) return null;
+                    const members = teams[event.id] || [emptyPerson()];
+                    const filled = members.filter(hasDetails).length;
+                    const updateMembers = (next: Person[]) => setTeams(current => ({ ...current, [event.id]: next }));
+                    return (
+                      <section key={event.id} className="reg-team" aria-label={event.title + ' team'}>
+                        <h3 className="reg-team-title">{event.title}</h3>
+                        {rule.max === 1 ? <p className="reg-hint">Individual event · only you. No teammates needed.</p> : <>
+                          <p className="reg-hint">Team size: min {rule.min}, max {rule.max} participants, including you.
+                            {rule.substitute && ' Four main players and one optional substitute.'}
+                          </p>
+                          <p className="reg-team-count">Teammates: min {rule.min - 1}, max {rule.max - 1} · {filled} added
+                            {rule.min === 1 && ' · Leave the first teammate blank to enter individually.'}
+                          </p>
+                          {members.map((person, index) => (
+                            <div key={index} className="reg-member">
+                              <div className="reg-member-head">
+                                <h4>{rule.substitute && index === rule.max - 2 ? 'Optional substitute' : 'Teammate ' + (index + 1)}</h4>
+                                {members.length > 1 && <button type="button" onClick={() => updateMembers(members.filter((_, i) => i !== index))} aria-label={'Remove ' + event.title + ' teammate ' + (index + 1)}><X className="w-4 h-4" /></button>}
+                              </div>
+                              <PersonFields value={person} required={rule.min > 1 || members.length > 1 || hasDetails(person)} prefix={event.id + '-tm' + index}
+                                onChange={next => updateMembers(members.map((value, i) => i === index ? next : value))} />
+                            </div>
+                          ))}
+                          {members.length < rule.max - 1 && <button type="button" className="reg-add" onClick={() => updateMembers([...members, emptyPerson()])}>
+                            <Plus className="w-4 h-4" /> Add {event.title} teammate
+                          </button>}
+                          {members.length === rule.max - 1 && <p className="reg-hint">Maximum teammate slots reached.</p>}
+                        </>}
+                      </section>
+                    );
+                  })}
                 </fieldset>
 
+                {notice && <p className="reg-notice" role="alert">{notice}</p>}
                 <button type="submit" disabled={submitting} className="reg-submit">
                   {submitting ? 'Registering...' : 'Confirm registration'} <ArrowUpRight className="w-4 h-4" />
                 </button>
@@ -342,7 +359,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                         {team
                           .map(
                             (t) =>
-                              `${t.name} ${t.department ? `(${t.department}${t.section ? ` Sec ${t.section}` : ''})` : ''}`
+                              `${events.find(event => event.id === t.event_id)?.title || t.event_id}: ${t.name} ${t.department ? `(${t.department}${t.section ? ` Sec ${t.section}` : ''})` : ''}`
                           )
                           .join(', ')}
                       </dd>

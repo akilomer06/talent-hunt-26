@@ -14,6 +14,7 @@ export async function checkBackendHealth(): Promise<boolean> {
 }
 
 export interface TeamMember {
+  event_id?: string;
   name: string;
   rrn: string;
   mobile: string;
