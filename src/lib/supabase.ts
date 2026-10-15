@@ -2,13 +2,25 @@ import { EVENTS as DEFAULT_EVENTS, type EventItem } from '../data/eventsData';
 import { apiRequest as api } from './api';
 
 const TOKEN_KEY = 'th26_admin_token';
-
-export async function loginAdmin(passcode: string): Promise<void> {
-  const { token } = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ passcode }) });
-  if (typeof token !== 'string' || !token) throw new Error('The backend returned an invalid sign-in response. Please try again.');
-  sessionStorage.setItem(TOKEN_KEY, token);
+export type AdminPortal = 'admin' | 'registration';
+const tokenKey = (portal: AdminPortal) => portal === 'registration' ? 'th26_registration_token' : TOKEN_KEY;
+function portalApi<T>(path: string, portal: AdminPortal, options: RequestInit = {}): Promise<T> {
+  const token = typeof window === 'undefined' ? '' : sessionStorage.getItem(tokenKey(portal)) || '';
+  return api(path, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + token } });
 }
-export function logoutAdmin(): void { sessionStorage.removeItem(TOKEN_KEY); }
+
+export async function loginAdmin(passcode: string, portal: AdminPortal = 'admin'): Promise<void> {
+  const { token } = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ passcode, portal }) });
+  if (typeof token !== 'string' || !token) throw new Error('The backend returned an invalid sign-in response. Please try again.');
+  sessionStorage.setItem(tokenKey(portal), token);
+}
+export function logoutAdmin(portal: AdminPortal = 'admin'): void { sessionStorage.removeItem(tokenKey(portal)); }
+export function checkAdminSession(portal: AdminPortal): Promise<{ role: AdminPortal }> { return portalApi('/api/admin/session', portal); }
+export interface RegistrationAccess { enabled: boolean; configured: boolean; }
+export function getRegistrationAccess(): Promise<RegistrationAccess> { return portalApi('/api/admin/access', 'admin'); }
+export function setRegistrationAccess(enabled: boolean, passcode?: string): Promise<RegistrationAccess> {
+  return portalApi('/api/admin/access', 'admin', { method: 'PUT', body: JSON.stringify({ enabled, ...(passcode ? { passcode } : {}) }) });
+}
 export async function checkBackendHealth(): Promise<boolean> {
   try { await api('/api/health'); return true; } catch { return false; }
 }
@@ -106,8 +118,8 @@ export async function submitRegistration(record: Omit<RegistrationRecord, 'id' |
   return api('/api/registrations', { method: 'POST', body: JSON.stringify(record) });
 }
 
-export async function fetchRegistrations(): Promise<RegistrationRecord[]> {
-  return api('/api/registrations');
+export async function fetchRegistrations(portal: AdminPortal = 'admin'): Promise<RegistrationRecord[]> {
+  return portalApi('/api/registrations', portal);
 }
 
 export async function deleteRegistration(regId: string): Promise<boolean> {

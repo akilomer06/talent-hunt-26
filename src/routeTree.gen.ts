@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminregistrationRouteImport } from './routes/adminregistration'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CoordinatorsRouteImport } from './routes/coordinators'
 import { Route as FaqsRouteImport } from './routes/faqs'
@@ -35,6 +36,11 @@ const AboutRoute = AboutRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminregistrationRoute = AdminregistrationRouteImport.update({
+  id: '/adminregistration',
+  path: '/adminregistration',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/adminregistration': typeof AdminregistrationRoute
   '/contact': typeof ContactRoute
   '/coordinators': typeof CoordinatorsRoute
   '/faqs': typeof FaqsRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/adminregistration': typeof AdminregistrationRoute
   '/contact': typeof ContactRoute
   '/coordinators': typeof CoordinatorsRoute
   '/faqs': typeof FaqsRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/adminregistration': typeof AdminregistrationRoute
   '/contact': typeof ContactRoute
   '/coordinators': typeof CoordinatorsRoute
   '/faqs': typeof FaqsRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/adminregistration'
     | '/contact'
     | '/coordinators'
     | '/faqs'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/adminregistration'
     | '/contact'
     | '/coordinators'
     | '/faqs'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/adminregistration'
     | '/contact'
     | '/coordinators'
     | '/faqs'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  AdminregistrationRoute: typeof AdminregistrationRoute
   ContactRoute: typeof ContactRoute
   CoordinatorsRoute: typeof CoordinatorsRoute
   FaqsRoute: typeof FaqsRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/adminregistration': {
+      id: '/adminregistration'
+      path: '/adminregistration'
+      fullPath: '/adminregistration'
+      preLoaderRoute: typeof AdminregistrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  AdminregistrationRoute: AdminregistrationRoute,
   ContactRoute: ContactRoute,
   CoordinatorsRoute: CoordinatorsRoute,
   FaqsRoute: FaqsRoute,

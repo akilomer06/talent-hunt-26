@@ -42,16 +42,20 @@ import {
   loginAdmin,
   logoutAdmin,
   checkBackendHealth,
+  checkAdminSession,
 } from '../lib/supabase';
+import { RegistrationTeamAccess } from '../components/RegistrationTeamAccess';
 import { type EventItem, EVENTS as INITIAL_EVENTS } from '../data/eventsData';
 
 interface AdminPageProps {
   onBack: () => void;
+  registrationOnly?: boolean;
 }
 
 
 
-export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
+export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly = false }) => {
+  const portal = registrationOnly ? 'registration' : 'admin';
   // Always enforce LIGHT THEME inside the Admin Portal
   useEffect(() => {
     const root = document.documentElement;
@@ -76,7 +80,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  useEffect(() => { setIsAuthenticated(!!sessionStorage.getItem('th26_admin_token')); }, []);
+  useEffect(() => {
+    let mounted = true;
+    const verify = async () => {
+      try {
+        const session = await checkAdminSession(portal);
+        if (session.role !== portal) throw new Error('Please use the correct admin portal');
+        if (mounted) setIsAuthenticated(true);
+      } catch {
+        if (mounted) setIsAuthenticated(false);
+        logoutAdmin(portal);
+      }
+    };
+    void verify();
+    const timer = setInterval(verify, 30000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [portal]);
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
 
@@ -110,7 +129,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setRefreshing(true);
     try {
       const [regs, { events: liveEvents, settings: liveSettings }] = await Promise.all([
-        fetchRegistrations(),
+        fetchRegistrations(portal),
         fetchLiveSiteContent(),
       ]);
       setRegistrations(regs);
@@ -141,7 +160,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await loginAdmin(passcode);
+      await loginAdmin(passcode, portal);
       setIsAuthenticated(true);
       setAuthError('');
     } catch (error) {
@@ -151,7 +170,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    logoutAdmin();
+    logoutAdmin(portal);
   };
 
   // Event Selection in editor
@@ -311,19 +330,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 Department of CSE
               </span>
               <h2 className="text-xl font-bold text-slate-900">
-                Talent Hunt 2K26 Admin
+                {registrationOnly ? 'Registration Team' : 'Talent Hunt 2K26 Admin'}
               </h2>
             </div>
           </div>
 
           <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-            Enter the admin passcode to access live registration counts, manage participant rosters, and edit website event cards.
+            {registrationOnly ? 'Enter the registration-team passcode to view the dashboard and registration list.' : 'Enter the admin passcode to access live registration counts, manage participant rosters, and edit website event cards.'}
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Admin Passcode
+                {registrationOnly ? 'Registration-team passcode' : 'Admin Passcode'}
               </label>
               <input
                 type="password"
@@ -388,7 +407,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 </span>
               </div>
               <h1 className="text-lg font-bold text-slate-900 leading-snug">
-                Organizer Dashboard & CMS
+                {registrationOnly ? 'Registration Team Dashboard' : 'Organizer Dashboard & CMS'}
               </h1>
             </div>
           </div>
@@ -450,6 +469,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             </span>
           </button>
 
+          {!registrationOnly && <>
           <button
             onClick={() => setActiveTab('editor')}
             className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-2 ${
@@ -473,6 +493,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             <Database className="w-3.5 h-3.5" />
             <span>Supabase Cloud Config</span>
           </button>
+          </>}
         </div>
       </header>
 
@@ -829,7 +850,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       <th className="py-3 px-4">Mobile</th>
                       <th className="py-3 px-4">Competitions</th>
                       <th className="py-3 px-4">Squad</th>
-                      <th className="py-3 px-4 text-right">Action</th>
+                      {!registrationOnly && <th className="py-3 px-4 text-right">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -895,7 +916,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                                   <span className="text-slate-400 text-[11px]">Solo</span>
                                 )}
                               </td>
-                              <td className="py-3 px-4 text-right">
+                              {!registrationOnly && <td className="py-3 px-4 text-right">
                                 <button
                                   onClick={() => handleDeleteRegistration(r.reg_id, r.name)}
                                   className="p-1.5 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
@@ -903,13 +924,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                              </td>
+                              </td>}
                             </tr>
 
                             {/* Expanded Squad Members Drawer */}
                             {isExpanded && r.team_members && (
                               <tr className="bg-slate-50/70 border-y border-slate-200">
-                                <td colSpan={8} className="p-4">
+                                <td colSpan={registrationOnly ? 7 : 8} className="p-4">
                                   <div className="space-y-2">
                                     <h5 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
                                       Squad Teammates ({r.team_members.length})
@@ -936,7 +957,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <td colSpan={registrationOnly ? 7 : 8} className="py-12 text-center text-slate-400">
                           No student registrations found matching the query.
                         </td>
                       </tr>
@@ -951,7 +972,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         {/* ======================================================== */}
         {/* TAB 3: CONTENT EDITOR (CMS) */}
         {/* ======================================================== */}
-        {activeTab === 'editor' && (
+        {!registrationOnly && activeTab === 'editor' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Event Selector & General Info */}
             <div className="lg:col-span-4 space-y-6">
@@ -1253,7 +1274,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         {/* ======================================================== */}
         {/* TAB 4: SUPABASE CLOUD SETUP */}
         {/* ======================================================== */}
-        {activeTab === 'database' && (
+        {!registrationOnly && activeTab === 'database' && (
           <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex items-center gap-3.5 pb-5 border-b border-slate-100">
               <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
@@ -1269,6 +1290,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
               </div>
             </div>
 
+            <RegistrationTeamAccess />
             <div className="space-y-3 text-xs leading-relaxed text-slate-600">
               <p>Registrations and content changes are saved through the site backend.</p>
               <p>Connection status: {dbConnected ? 'Connected' : 'Unavailable. Contact the site administrator.'}</p>

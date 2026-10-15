@@ -8,7 +8,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const token = typeof window === 'undefined' ? null : sessionStorage.getItem('th26_admin_token');
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
-  if (token) headers.set('Authorization', 'Bearer ' + token);
+  if (token && !headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
 
   let response: Response;
   try {

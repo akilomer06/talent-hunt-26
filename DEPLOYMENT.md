@@ -118,7 +118,31 @@ Suggested order: create Vercel project to obtain its domain, deploy Render with
 that `FRONTEND_URL`, then deploy Vercel with the included API proxy. Verify public
 content, a registration, and admin sign-in after both services are deployed.
 
-## Verification
+## Admin portals
+
+`/admin` retains the full existing admin portal and uses Render's `ADMIN_PASSCODE`.
+`/adminregistration` is a separate registration-team sign-in, limited to dashboard,
+roster and CSV export. It cannot delete registrations, edit website content or
+manage access, including through direct API calls.
+
+In the main portal, open **Supabase Cloud Config → Registration-team access**.
+Set a separate team passcode (at least eight characters) and enable access. The
+**Revoke team access** control blocks existing team tokens immediately at the API;
+the team page checks its session every 30 seconds. Updating access or changing
+the team passcode also invalidates old team sessions. Access starts disabled.
+
+Before enabling it, set `SUPABASE_SECRET_KEY` and a stable `SESSION_SECRET` in
+Render and run `backend/secure-policies.sql` in Supabase. The existing database
+has public policies; API roles alone cannot restrict direct database requests.
+The enable control verifies anonymous access has been revoked. Disabling access
+remains available even if database permissions are subsequently misconfigured.
+
+Access configuration is encrypted in a separate `site_content` record and is
+excluded from the public content API. Keep `SESSION_SECRET` unchanged across
+deploys. If it changes, team access fails closed and must be configured again.
+After this update, sign in again: older tokens are replaced with role-aware tokens.
+
+## Verification commands
 
 ```powershell
 npm test

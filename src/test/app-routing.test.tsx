@@ -14,4 +14,9 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+  it('keeps separate routes for main admin and registration team', () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+    expect(router.matchRoutes('/admin').at(-1)?.routeId).toBe('/admin');
+    expect(router.matchRoutes('/adminregistration').at(-1)?.routeId).toBe('/adminregistration');
+  });
 });

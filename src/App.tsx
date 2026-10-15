@@ -19,7 +19,7 @@ import { GameHome } from './components/game/GameHome';
 import { EVENTS } from './data/eventsData';
 
 type Theme = 'paper' | 'dark' | 'game';
-type View = 'home' | 'event-detail' | 'register' | 'faqs' | InfoPage | 'technical' | 'non-technical' | 'admin';
+type View = 'home' | 'event-detail' | 'register' | 'faqs' | InfoPage | 'technical' | 'non-technical' | 'admin' | 'adminregistration';
 
 export function App({ view = 'home', eventId = 'code-break' }: { view?: View; eventId?: string } = {}) {
   const navigate = useNavigate();
@@ -95,8 +95,8 @@ export function App({ view = 'home', eventId = 'code-break' }: { view?: View; ev
       ? 'Admin Portal'
       : currentView === 'home' ? undefined : currentView.replace('-', ' ');
 
-  if (currentView === 'admin') {
-    return <AdminPage onBack={handleNavigateHome} />;
+  if (currentView === 'admin' || currentView === 'adminregistration') {
+    return <AdminPage registrationOnly={currentView === 'adminregistration'} onBack={handleNavigateHome} />;
   }
 
   return (

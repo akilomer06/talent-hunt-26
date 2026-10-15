@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { createAccessStore } from './access.mjs';
 import { validateEventTeams } from '../shared/registrationRules.ts';
 
 export function createApiServer(env = process.env, request = fetch) {
@@ -38,6 +39,7 @@ export function createApiServer(env = process.env, request = fetch) {
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
+  const access = createAccessStore(database, secret);
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
     res.setHeader('Vary', 'Origin');
@@ -74,12 +76,15 @@ export function createApiServer(env = process.env, request = fetch) {
         if (attempt.count >= 10) return reply(429, { error: 'Too many login attempts. Try again in a minute.' });
         attempt.count++;
         attempts.set(ip, attempt);
-        if (typeof body?.passcode !== 'string' || !equal(body.passcode, env.ADMIN_PASSCODE)) return reply(401, { error: 'Incorrect passcode' });
+        if (typeof body?.passcode !== 'string' || body.passcode.length > 200) return reply(401, { error: 'Incorrect passcode' });
+        const role = body.portal === 'registration' ? 'registration' : 'admin';
+        const version = role === 'registration' ? await access.login(body.passcode) : '';
+        if ((role === 'admin' && !equal(body.passcode, env.ADMIN_PASSCODE)) || (role === 'registration' && !version)) return reply(401, { error: 'Incorrect passcode or registration-team access is disabled' });
         attempts.delete(ip);
-        const expiry = String(now + 8 * 60 * 60 * 1000);
-        return reply(200, { token: `${expiry}.${sign(expiry)}` });
+        const payload = Buffer.from(JSON.stringify({ role, exp: now + 8 * 60 * 60 * 1000, version })).toString('base64url');
+        return reply(200, { token: payload + '.' + sign(payload), role });
       }
-      if (path === '/api/content' && req.method === 'GET') return reply(200, await database('site_content?select=*'));
+      if (path === '/api/content' && req.method === 'GET') return reply(200, await database('site_content?select=*&key=in.(events,settings)'));
       if (path === '/api/registrations' && req.method === 'POST') {
         const fields = ['reg_id', 'name', 'rrn', 'mobile', 'programme', 'year', 'department'];
         if (!fields.every(key => typeof body?.[key] === 'string' && body[key].trim().length > 0 && body[key].length <= 200)
@@ -103,8 +108,36 @@ export function createApiServer(env = process.env, request = fetch) {
         }
         return reply(201, { success: true, data: record });
       }
-      const [expiry, signature] = (req.headers.authorization?.replace(/^Bearer /, '') || '').split('.');
-      if (!expiry || Number(expiry) < Date.now() || !equal(signature, sign(expiry))) return reply(401, { error: 'Please sign in to the admin portal' });
+      const parts = (req.headers.authorization?.replace(/^Bearer /, '') || '').split('.');
+      let session;
+      try {
+        if (parts.length !== 2 || !equal(parts[1], sign(parts[0]))) throw new Error();
+        session = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+        if (!['admin', 'registration'].includes(session.role) || !Number.isFinite(session.exp) || session.exp < Date.now()) throw new Error();
+      } catch { return reply(401, { error: 'Please sign in to the correct admin portal' }); }
+      if (session.role === 'registration') {
+        const current = await access.read();
+        if (!current.enabled || !equal(session.version, current.version)) return reply(401, { error: 'Registration-team access has been revoked. Contact the main administrator.' });
+        if (req.method !== 'GET' || !['/api/registrations', '/api/admin/session'].includes(path)) return reply(403, { error: 'This portal has read-only registration access' });
+      }
+      if (path === '/api/admin/session' && req.method === 'GET') return reply(200, { role: session.role });
+      if (path === '/api/admin/access' && req.method === 'GET') return reply(200, access.status(await access.read()));
+      if (path === '/api/admin/access' && req.method === 'PUT') {
+        if (!env.SESSION_SECRET) return reply(503, { error: 'Set a stable SESSION_SECRET on Render before configuring registration-team access.' });
+        if (body?.enabled) {
+          if (!env.SUPABASE_SECRET_KEY) return reply(503, { error: 'Set SUPABASE_SECRET_KEY on Render and apply backend/secure-policies.sql before enabling team access.' });
+          // API roles cannot protect data while Supabase still grants anonymous
+          // table access. Require the existing hardening migration before grant.
+          for (const table of ['registrations', 'site_content']) {
+            const probe = await request(`${env.SUPABASE_URL}/rest/v1/${table}?select=*&limit=0`, {
+              headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY }, signal: AbortSignal.timeout(15000),
+            });
+            if (![401, 403].includes(probe.status)) return reply(503, { error: 'Apply backend/secure-policies.sql in Supabase first. The database still permits public access.' });
+          }
+        }
+        try { return reply(200, await access.save(body)); }
+        catch (error) { if (error.status === 400) return reply(400, { error: error.message }); throw error; }
+      }
       if (path === '/api/registrations' && req.method === 'GET') {
         const rows = await database('registrations?select=*&order=created_at.desc');
         return reply(200, rows.map(row => {
