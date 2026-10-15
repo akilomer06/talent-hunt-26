@@ -76,7 +76,8 @@ export function createApiServer(env = process.env, request = fetch) {
         try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Invalid JSON' }); }
       }
       if (path === '/api/health' && req.method === 'GET') {
-        await database('site_content?select=key&limit=0');
+        // A real, read-only database query; never return the content or write a row.
+        await database('site_content?select=key&limit=1', { method: 'GET' });
         return reply(200, { status: 'ok', database: 'connected' });
       }
       if (['/api/admin/login', '/api/adminregistration/login'].includes(path) && req.method === 'POST') {

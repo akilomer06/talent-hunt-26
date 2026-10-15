@@ -1,0 +1,39 @@
+name: Backend and database health
+
+on:
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/health-check.yml'
+
+permissions: {}
+
+concurrency:
+  group: production-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check Render and its read-only Supabase probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --connect-timeout 15 --max-time 90 \
+            --retry 2 --retry-delay 10 --retry-all-errors \
+            --output /tmp/health.json \
+            'https://talent-hunt-26.onrender.com/api/health'
+          python3 - <<'PY'
+          import json
+          with open('/tmp/health.json') as response:
+              result = json.load(response)
+          if result.get('status') != 'ok' or result.get('database') != 'connected':
+              raise SystemExit('Backend or database health check failed')
+          print('Render is responding and Supabase read-only query succeeded.')
+          PY

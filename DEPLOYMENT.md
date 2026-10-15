@@ -151,6 +151,24 @@ excluded from the public content API. Keep `SESSION_SECRET` unchanged across
 deploys. If it changes, team access fails closed and must be configured again.
 After this update, sign in again: older tokens are replaced with role-aware tokens.
 
+## Scheduled backend and database health
+
+`.github/workflows/health-check.yml` requests the Render `/api/health` endpoint
+every ten minutes (minutes 7, 17, 27, 37, 47 and 57 UTC), on workflow changes,
+and through Actions → Backend and database health → Run workflow.
+It runs on GitHub, so a local computer does not need to stay on. Ensure GitHub
+Actions is enabled for the repository. No Supabase credentials are needed in Actions.
+
+Each request makes a fresh GET query for at most one `site_content` key using
+the backend's existing credentials. It does not insert, update, delete, or expose
+database content. Database failures produce a failed health check rather than
+a false successful result. No separate Vercel keep-alive is needed.
+
+This is best-effort: GitHub schedules can be delayed or dropped and public-repo
+schedules are disabled after 60 days without repository activity. Free hosting
+quotas still apply; a paused Supabase project must be restored in its dashboard.
+See [GitHub schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
+
 ## Verification commands
 
 ```powershell
