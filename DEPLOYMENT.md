@@ -102,9 +102,9 @@ The committed `vercel.json` configures:
 The committed Vercel API route forwards `/api/*` to
 `https://talent-hunt-26.onrender.com/api/*` **before** the website fallback.
 This allows both admin sign-in and registration to use same-origin requests.
-If `VITE_API_URL` is already configured, remove it or set it to the exact Render
-origin `https://talent-hunt-26.onrender.com` (without `/api`). Redeploy Vercel after
-changing this variable because Vite embeds it at build time. The static fallback
+Production builds always use the Vercel proxy, even if `VITE_API_URL` remains in
+the Vercel environment. That override is supported only during local development.
+Remove the variable from Vercel to avoid confusion. The static fallback
 to `/_shell.html` supports refreshed deep links
 such as `/register`, `/admin`, and `/events/code-break`.
 

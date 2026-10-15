@@ -1,6 +1,10 @@
 /** Both Vite and Vercel proxy /api to the separate backend. */
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const base = (import.meta.env['VITE_API_URL'] || '').trim().replace(/\/+$/, '');
+  // Hosted clients always use the Vercel proxy. An old build-time API override
+  // must not bypass it and introduce cross-origin browser requests.
+  const base = import.meta.env.DEV
+    ? (import.meta.env['VITE_API_URL'] || '').trim().replace(/\/+$/, '')
+    : '';
   const token = typeof window === 'undefined' ? null : sessionStorage.getItem('th26_admin_token');
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');

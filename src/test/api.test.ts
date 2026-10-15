@@ -18,7 +18,8 @@ describe('frontend API connection', () => {
     expect(request.mock.calls.map(call => call[0])).toEqual(['/api/admin/login', '/api/registrations']);
   });
 
-  it('supports an explicit Render origin and sends the admin token', async () => {
+  it('supports an explicit Render origin during development and sends the admin token', async () => {
+    vi.stubEnv('DEV', true);
     vi.stubEnv('VITE_API_URL', 'https://talent-hunt-26.onrender.com/');
     sessionStorage.setItem('th26_admin_token', 'test-token');
     const request = vi.fn().mockResolvedValue(Response.json([]));
@@ -26,6 +27,16 @@ describe('frontend API connection', () => {
     await apiRequest('/api/registrations');
     expect(request.mock.calls[0]?.[0]).toBe('https://talent-hunt-26.onrender.com/api/registrations');
     expect(request.mock.calls[0]?.[1].headers.get('Authorization')).toBe('Bearer test-token');
+  });
+
+  it('ignores stale cross-origin API settings in production for registrations', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_API_URL', 'https://talent-hunt-26.onrender.com');
+    const request = vi.fn().mockImplementation(async () => Response.json({ success: true }));
+    vi.stubGlobal('fetch', request);
+    await apiRequest('/api/registrations', { method: 'POST', body: '{}' });
+    await apiRequest('/api/admin/login', { method: 'POST', body: '{}' });
+    expect(request.mock.calls.map(call => call[0])).toEqual(['/api/registrations', '/api/admin/login']);
   });
 
   it.each([
