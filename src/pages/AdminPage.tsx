@@ -98,6 +98,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   }, [portal]);
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'editor' | 'database'>('overview');
@@ -159,13 +160,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   // Auth handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loggingIn) return;
+    setLoggingIn(true);
+    setAuthError('');
     try {
       await loginAdmin(passcode, portal);
       setIsAuthenticated(true);
       setAuthError('');
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Unable to sign in');
-    }
+    } finally { setLoggingIn(false); }
   };
 
   const handleLogout = () => {
@@ -349,7 +353,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                 required
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter admin passcode"
+                placeholder={registrationOnly ? "Enter registration-team passcode" : "Enter admin passcode"}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all font-mono"
                 autoFocus
               />
@@ -358,9 +362,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-lg shadow-sm hover:shadow transition-all"
+              disabled={loggingIn}
+              className="w-full py-2.5 disabled:opacity-60 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-lg shadow-sm hover:shadow transition-all"
             >
-              Unlock Dashboard
+              {loggingIn ? 'Signing in…' : registrationOnly ? 'Open Registration Dashboard' : 'Open Main Admin'}
             </button>
 
             <button
@@ -373,6 +378,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            <a href={registrationOnly ? '/admin' : '/adminregistration'} className="block mb-3 text-sm text-blue-700 underline">{registrationOnly ? 'Go to main admin sign-in' : 'Go to registration-team sign-in'}</a>
             <p className="text-xs text-slate-400">Use the passcode provided by your site administrator.</p>
           </div>
         </div>

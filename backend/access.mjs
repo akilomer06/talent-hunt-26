@@ -5,12 +5,21 @@ export const ACCESS_KEY = '_registration_team_access';
 
 // Secrets stay encrypted at rest, separate from public website settings. Keep
 // SESSION_SECRET stable across Render deploys so stored access remains readable.
-export function createAccessStore(database, secret) {
+export function createAccessStore(database, secret, initialPasscode = '') {
   const key = createHash('sha256').update(secret).digest();
   const empty = () => ({ enabled: false, version: '', hash: '', salt: '' });
+  let initial;
+  async function initialAccess() {
+    if (!initialPasscode) return empty();
+    if (!initial) initial = (async () => {
+      const salt = createHash('sha256').update(secret + ':registration-salt').digest('hex');
+      return { enabled: true, version: createHash('sha256').update(secret + ':registration:' + initialPasscode).digest('hex'), salt, hash: (await scrypt(initialPasscode, salt, 64)).toString('hex') };
+    })();
+    return initial;
+  }
   async function read() {
     const rows = await database(`site_content?key=eq.${ACCESS_KEY}&select=value`);
-    if (!rows?.[0]?.value) return empty();
+    if (!rows?.[0]?.value) return initialAccess();
     try {
       const value = rows[0].value;
       const cipher = createDecipheriv('aes-256-gcm', key, Buffer.from(value.iv, 'hex'));

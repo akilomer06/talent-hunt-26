@@ -24,9 +24,9 @@ test('registration-team sessions are read-only, persistent and immediately revoc
   };
   let { server, url } = await start();
   const call = (path, method = 'GET', body, token) => fetch(url + path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }), headers: token ? { Authorization: 'Bearer ' + token } : {} });
-  const login = async (passcode, portal = 'admin') => (await call('/api/admin/login', 'POST', { passcode, portal })).json();
+  const login = async (passcode, portal = 'admin') => (await call(portal === 'registration' ? '/api/adminregistration/login' : '/api/admin/login', 'POST', { passcode, portal })).json();
   try {
-    assert.equal((await call('/api/admin/login', 'POST', { passcode: 'team-secret', portal: 'registration' })).status, 401);
+    assert.equal((await call('/api/adminregistration/login', 'POST', { passcode: 'team-secret' })).status, 401);
     const admin = await login('main-admin-secret');
     assert.equal(admin.role, 'admin');
     publicAccess = true;
@@ -49,7 +49,7 @@ test('registration-team sessions are read-only, persistent and immediately revoc
     assert.deepEqual(publicRows, []);
     assert.equal((await call('/api/admin/access', 'PUT', { enabled: false }, admin.token)).status, 200);
     assert.equal((await call('/api/registrations', 'GET', undefined, team.token)).status, 401);
-    assert.equal((await call('/api/admin/login', 'POST', { passcode: 'team-secret', portal: 'registration' })).status, 401);
+    assert.equal((await call('/api/adminregistration/login', 'POST', { passcode: 'team-secret' })).status, 401);
     assert.equal((await call('/api/admin/access', 'PUT', { enabled: true }, admin.token)).status, 200);
     assert.equal((await call('/api/registrations', 'GET', undefined, team.token)).status, 401);
     await new Promise(resolve => server.close(resolve));

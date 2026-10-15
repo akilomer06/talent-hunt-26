@@ -10,7 +10,8 @@ function portalApi<T>(path: string, portal: AdminPortal, options: RequestInit = 
 }
 
 export async function loginAdmin(passcode: string, portal: AdminPortal = 'admin'): Promise<void> {
-  const { token } = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ passcode, portal }) });
+  const endpoint = portal === 'registration' ? '/api/adminregistration/login' : '/api/admin/login';
+  const { token } = await api<{ token: string }>(endpoint, { method: 'POST', body: JSON.stringify({ passcode, portal }) });
   if (typeof token !== 'string' || !token) throw new Error('The backend returned an invalid sign-in response. Please try again.');
   sessionStorage.setItem(tokenKey(portal), token);
 }

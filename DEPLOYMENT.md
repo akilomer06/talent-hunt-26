@@ -82,6 +82,7 @@ publishable key and generates `SESSION_SECRET`):
 | `SUPABASE_PUBLISHABLE_KEY` | The supplied publishable key |
 | `SUPABASE_SECRET_KEY` | Supabase secret key, server only |
 | `ADMIN_PASSCODE` | A private passcode of your choice |
+| `REGISTRATION_TEAM_PASSCODE` | A separate initial registration-team passcode |
 | `SESSION_SECRET` | Long random secret; Blueprint generates it |
 | `FRONTEND_URL` | `https://talent-hunt-2k26-five.vercel.app` |
 
@@ -125,11 +126,19 @@ content, a registration, and admin sign-in after both services are deployed.
 roster and CSV export. It cannot delete registrations, edit website content or
 manage access, including through direct API calls.
 
+Set `ADMIN_PASSCODE` and `REGISTRATION_TEAM_PASSCODE` separately in Render.
+The portals use independent login endpoints, tokens and retry counters. The team
+environment variable initializes access when no access configuration exists yet;
+subsequent explicit passcode updates or revocations in main admin take priority.
+Removing/re-adding the environment variable cannot undo an explicit revocation.
+An environment passcode also requires the private database setup below.
+
 In the main portal, open **Supabase Cloud Config → Registration-team access**.
 Set a separate team passcode (at least eight characters) and enable access. The
 **Revoke team access** control blocks existing team tokens immediately at the API;
 the team page checks its session every 30 seconds. Updating access or changing
-the team passcode also invalidates old team sessions. Access starts disabled.
+the team passcode also invalidates old team sessions. Access starts disabled
+unless `REGISTRATION_TEAM_PASSCODE` supplies its initial configuration.
 
 Before enabling it, set `SUPABASE_SECRET_KEY` and a stable `SESSION_SECRET` in
 Render and run `backend/secure-policies.sql` in Supabase. The existing database

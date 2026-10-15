@@ -39,7 +39,18 @@ export function createApiServer(env = process.env, request = fetch) {
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
-  const access = createAccessStore(database, secret);
+  const access = createAccessStore(database, secret, env.REGISTRATION_TEAM_PASSCODE);
+  async function registrationSetupError() {
+    if (!env.SESSION_SECRET) return 'Set a stable SESSION_SECRET on Render before configuring registration-team access.';
+    if (!env.SUPABASE_SECRET_KEY) return 'Set SUPABASE_SECRET_KEY on Render and apply backend/secure-policies.sql before enabling team access.';
+    for (const table of ['registrations', 'site_content']) {
+      const probe = await request(env.SUPABASE_URL + '/rest/v1/' + table + '?select=*&limit=0', {
+        headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY }, signal: AbortSignal.timeout(15000),
+      });
+      if (![401, 403].includes(probe.status)) return 'Apply backend/secure-policies.sql in Supabase first. The database still permits public access.';
+    }
+    return null;
+  }
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
     res.setHeader('Vary', 'Origin');
@@ -68,19 +79,28 @@ export function createApiServer(env = process.env, request = fetch) {
         await database('site_content?select=key&limit=0');
         return reply(200, { status: 'ok', database: 'connected' });
       }
-      if (path === '/api/admin/login' && req.method === 'POST') {
+      if (['/api/admin/login', '/api/adminregistration/login'].includes(path) && req.method === 'POST') {
+        const role = path === '/api/adminregistration/login' ? 'registration' : 'admin';
         const ip = req.socket.remoteAddress;
+        const attemptKey = role + ':' + ip;
         const now = Date.now();
         for (const [key, value] of attempts) if (value.until < now) attempts.delete(key);
-        const attempt = attempts.get(ip) || { count: 0, until: now + 60000 };
-        if (attempt.count >= 10) return reply(429, { error: 'Too many login attempts. Try again in a minute.' });
+        const attempt = attempts.get(attemptKey) || { count: 0, until: now + 60000 };
+        if (attempt.count >= 10) {
+          const retryAfter = Math.max(1, Math.ceil((attempt.until - now) / 1000));
+          res.setHeader('Retry-After', String(retryAfter));
+          return reply(429, { error: `Too many ${role === 'admin' ? 'main-admin' : 'registration-team'} login attempts. Try again in ${retryAfter} seconds.` });
+        }
         attempt.count++;
-        attempts.set(ip, attempt);
+        attempts.set(attemptKey, attempt);
         if (typeof body?.passcode !== 'string' || body.passcode.length > 200) return reply(401, { error: 'Incorrect passcode' });
-        const role = body.portal === 'registration' ? 'registration' : 'admin';
+        if (role === 'registration') {
+          const setupError = await registrationSetupError();
+          if (setupError) return reply(503, { error: setupError });
+        }
         const version = role === 'registration' ? await access.login(body.passcode) : '';
         if ((role === 'admin' && !equal(body.passcode, env.ADMIN_PASSCODE)) || (role === 'registration' && !version)) return reply(401, { error: 'Incorrect passcode or registration-team access is disabled' });
-        attempts.delete(ip);
+        attempts.delete(attemptKey);
         const payload = Buffer.from(JSON.stringify({ role, exp: now + 8 * 60 * 60 * 1000, version })).toString('base64url');
         return reply(200, { token: payload + '.' + sign(payload), role });
       }
@@ -123,17 +143,9 @@ export function createApiServer(env = process.env, request = fetch) {
       if (path === '/api/admin/session' && req.method === 'GET') return reply(200, { role: session.role });
       if (path === '/api/admin/access' && req.method === 'GET') return reply(200, access.status(await access.read()));
       if (path === '/api/admin/access' && req.method === 'PUT') {
-        if (!env.SESSION_SECRET) return reply(503, { error: 'Set a stable SESSION_SECRET on Render before configuring registration-team access.' });
         if (body?.enabled) {
-          if (!env.SUPABASE_SECRET_KEY) return reply(503, { error: 'Set SUPABASE_SECRET_KEY on Render and apply backend/secure-policies.sql before enabling team access.' });
-          // API roles cannot protect data while Supabase still grants anonymous
-          // table access. Require the existing hardening migration before grant.
-          for (const table of ['registrations', 'site_content']) {
-            const probe = await request(`${env.SUPABASE_URL}/rest/v1/${table}?select=*&limit=0`, {
-              headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY }, signal: AbortSignal.timeout(15000),
-            });
-            if (![401, 403].includes(probe.status)) return reply(503, { error: 'Apply backend/secure-policies.sql in Supabase first. The database still permits public access.' });
-          }
+          const setupError = await registrationSetupError();
+          if (setupError) return reply(503, { error: setupError });
         }
         try { return reply(200, await access.save(body)); }
         catch (error) { if (error.status === 400) return reply(400, { error: error.message }); throw error; }
