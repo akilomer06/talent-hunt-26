@@ -77,7 +77,7 @@ publishable key and generates `SESSION_SECRET`):
 | `SUPABASE_SECRET_KEY` | Supabase secret key, server only |
 | `ADMIN_PASSCODE` | A private passcode of your choice |
 | `SESSION_SECRET` | Long random secret; Blueprint generates it |
-| `FRONTEND_URL` | Exact Vercel origin, e.g. `https://your-site.vercel.app` |
+| `FRONTEND_URL` | `https://talent-hunt-2k26-five.vercel.app` |
 
 Render supplies `PORT`; the server binds to `0.0.0.0`. `FRONTEND_URL` accepts
 comma-separated exact origins, without trailing slashes. Add a custom domain or
@@ -97,15 +97,19 @@ The committed `vercel.json` configures:
 | Build command | `npm run build` |
 | Output directory | `dist/client` |
 | Node version | 24.x |
-| `VITE_API_URL` | Your Render origin, e.g. `https://your-backend.onrender.com` |
+| `VITE_API_URL` | Leave unset or empty to use the Vercel API proxy |
 
-Set `VITE_API_URL` before the final build. It must include `https://` and must not
-include `/api`. Redeploy Vercel after changing it because Vite embeds the value
-at build time. The static fallback to `/_shell.html` supports refreshed deep links
+The committed Vercel API route forwards `/api/*` to
+`https://talent-hunt-26.onrender.com/api/*` **before** the website fallback.
+This allows both admin sign-in and registration to use same-origin requests.
+If `VITE_API_URL` is already configured, remove it or set it to the exact Render
+origin `https://talent-hunt-26.onrender.com` (without `/api`). Redeploy Vercel after
+changing this variable because Vite embeds it at build time. The static fallback
+to `/_shell.html` supports refreshed deep links
 such as `/register`, `/admin`, and `/events/code-break`.
 
 Suggested order: create Vercel project to obtain its domain, deploy Render with
-that `FRONTEND_URL`, then set `VITE_API_URL` in Vercel and redeploy. Verify public
+that `FRONTEND_URL`, then deploy Vercel with the included API proxy. Verify public
 content, a registration, and admin sign-in after both services are deployed.
 
 ## Verification

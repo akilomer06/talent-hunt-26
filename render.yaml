@@ -15,7 +15,7 @@ services:
       - key: SUPABASE_PUBLISHABLE_KEY
         value: sb_publishable_S6cUFCL68pSG_DlzQgoyZA_vubA2Y_E
       - key: FRONTEND_URL
-        sync: false
+        value: https://talent-hunt-2k26-five.vercel.app
       - key: SUPABASE_SECRET_KEY
         sync: false
       - key: ADMIN_PASSCODE

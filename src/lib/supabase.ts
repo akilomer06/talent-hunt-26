@@ -1,22 +1,11 @@
 import { EVENTS as DEFAULT_EVENTS, type EventItem } from '../data/eventsData';
+import { apiRequest as api } from './api';
 
-const API_URL = (import.meta.env['VITE_API_URL'] || '').replace(/\/$/, '');
 const TOKEN_KEY = 'th26_admin_token';
-
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window === 'undefined' ? null : sessionStorage.getItem(TOKEN_KEY);
-  const response = await fetch(API_URL + path, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...options.headers },
-    signal: AbortSignal.timeout(30000),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'API request failed');
-  return data as T;
-}
 
 export async function loginAdmin(passcode: string): Promise<void> {
   const { token } = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ passcode }) });
+  if (typeof token !== 'string' || !token) throw new Error('The backend returned an invalid sign-in response. Please try again.');
   sessionStorage.setItem(TOKEN_KEY, token);
 }
 export function logoutAdmin(): void { sessionStorage.removeItem(TOKEN_KEY); }
