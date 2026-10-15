@@ -114,7 +114,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
       </section>
 
       {!track && <>
-      <section id="brochure" className="gm-section gm-brochure-section"><div><p className="gm-chip">THE OFFICIAL DROP</p><h2 className="gm-pixel gm-h2">THE WHOLE<br/>LINEUP.</h2><p>Eight technical. Eight non-technical.<br/>Your next challenge is on the poster.</p><Button variant="game" className="gm-brochure-link" onClick={() => setPosterOpen(true)}>Open official brochure <ArrowUpRight/></Button><Button variant="game" className="gm-brochure-link" onClick={() => downloadBrochure().catch(() => window.open(posterImg, '_blank', 'noopener'))}>Download brochure ↓</Button></div><Button variant="game" className="gm-poster-preview" onClick={() => setPosterOpen(true)} aria-label="View official Talent Hunt poster"><img src={posterImg} alt="Official Talent Hunt 2K26 brochure"/></Button></section>
+      <section id="brochure" className="gm-section gm-brochure-section"><div><p className="gm-chip">THE OFFICIAL DROP</p><h2 className="gm-pixel gm-h2">THE WHOLE<br/>LINEUP.</h2><p>Eight technical. Eight non-technical.<br/>Your next challenge is on the poster.</p><Button variant="game" className="gm-brochure-link" onClick={() => setPosterOpen(true)}>Open official brochure <ArrowUpRight/></Button><Button variant="game" className="gm-brochure-link" onClick={() => downloadBrochure().catch(() => window.open(posterImg, '_blank', 'noopener'))}>Download brochure ↓</Button></div></section>
 
       {/* HOW TO PLAY */}
       <section className="gm-section">

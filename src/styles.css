@@ -1261,7 +1261,7 @@ html.game, body.game, .game { --color-paper: 5 10 14; --color-paper-soft: 12 22 
 @keyframes gm-ball { to { transform: translate(140px,-60px); } }
 @keyframes gm-fashion { 50% { transform: rotateY(150deg); } }
 @keyframes gm-hammer { 20% { transform: rotate(-35deg); } 35% { transform: rotate(12deg); } }
-.gm-brochure-section { display: grid; grid-template-columns: 1fr 380px; align-items: center; gap: 80px; border-block: 1px solid rgb(var(--color-electric-blue) / .2); }
+.gm-brochure-section { display: block; border-block: 1px solid rgb(var(--color-electric-blue) / .2); }
 .gm-brochure-section h2 { margin-block: 22px; font-size: 34px; }
 .gm-brochure-section p:not(.gm-chip) { color: rgb(var(--color-ink-muted)); line-height: 1.8; margin-bottom: 16px; }
 .gm-brochure-section .gm-brochure-link { display: flex; width: max-content; }
