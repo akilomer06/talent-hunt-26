@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.mocked(api.checkBackendHealth).mockResolvedValue(true);
 });
 describe('separate admin portals', () => {
-  it('offers only dashboard and read-only roster to the registration team', async () => {
+  it('offers dashboard, read-only roster and academic counts to the registration team', async () => {
     vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'registration' });
     render(<AdminPage registrationOnly onBack={() => {}} />);
     expect(await screen.findByRole('button', { name: 'Dashboard Overview' })).toBeInTheDocument();
@@ -26,6 +26,10 @@ describe('separate admin portals', () => {
     expect(await screen.findByText('Test Participant')).toBeInTheDocument();
     expect(screen.queryByTitle('Delete entry')).not.toBeInTheDocument();
     expect(api.fetchRegistrations).toHaveBeenCalledWith('registration');
+    fireEvent.click(screen.getByRole('button', { name: 'Department & Section Counts' }));
+    expect(await screen.findByRole('heading', { name: 'Programme, year & section counts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'B.Tech · 2nd year' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'M.Tech' })).toBeInTheDocument();
   });
   it('retains editing, database settings and delete controls for main admin', async () => {
     vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'admin' });
@@ -34,6 +38,8 @@ describe('separate admin portals', () => {
     expect(screen.getByRole('button', { name: 'Supabase Cloud Config' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Registrations Roster/ }));
     expect(await screen.findByTitle('Delete entry')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Department & Section Counts' }));
+    expect(await screen.findByRole('heading', { name: 'Programme, year & section counts' })).toBeInTheDocument();
   });
   it('does not accept a registration-team session in the main portal', async () => {
     vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'registration' });

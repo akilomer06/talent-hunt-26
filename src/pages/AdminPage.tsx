@@ -45,6 +45,7 @@ import {
   checkAdminSession,
 } from '../lib/supabase';
 import { RegistrationTeamAccess } from '../components/RegistrationTeamAccess';
+import { AcademicCounts } from '../components/AcademicCounts';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { type EventItem, EVENTS as INITIAL_EVENTS } from '../data/eventsData';
 
@@ -102,7 +103,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   const [loggingIn, setLoggingIn] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'editor' | 'database'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'counts' | 'editor' | 'database'>('overview');
 
   // Data states
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
@@ -502,6 +503,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
             </span>
           </button>
 
+          <button onClick={() => setActiveTab('counts')} className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'counts' ? 'text-amber-600 border-b-2 border-amber-600 bg-amber-50/40' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+            <Users className="w-3.5 h-3.5" /><span>Department & Section Counts</span>
+          </button>
           {!registrationOnly && <>
           <button
             onClick={() => setActiveTab('editor')}
@@ -547,6 +551,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
         {/* ======================================================== */}
         {/* TAB 1: DASHBOARD OVERVIEW */}
         {/* ======================================================== */}
+        {activeTab === 'counts' && <AcademicCounts registrations={registrations} />}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* 4 Clean Summary Cards */}
