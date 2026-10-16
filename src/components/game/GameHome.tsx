@@ -46,7 +46,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
         <div className="gm-hero-inner">
           <p className="gm-chip"><Zap className="w-3.5 h-3.5" /> DEPT. OF CSE PRESENTS</p>
           <img src={logoImg} alt="Talent Hunt 2K26 logo" className="gm-logo" />
-          <h1 className="gm-title gm-pixel"><span data-text="TALENT">TALENT</span><span data-text="HUNT">HUNT</span></h1>
+          <h1 className="gm-title gm-pixel" aria-label="Talent Hunt"><span aria-hidden="true" data-text="TALENT">TALENT</span><span aria-hidden="true" data-text="HUNT">HUNT</span></h1>
           <p className="gm-subtitle gm-pixel">2K26 <span>· 16 EVENTS · ONE ARENA</span></p>
 
           <div className="gm-hud-row">
@@ -76,6 +76,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
         <div className="gm-sec-head">
           <p className="gm-chip"><Gamepad2 className="w-3.5 h-3.5" /> WORLD 1</p>
           {!track && <h2 className="gm-pixel gm-h2">SELECT YOUR LEVEL</h2>}
+          {track && <h1 className="gm-pixel gm-h2">{track === 'technical' ? 'TECHNICAL ARENAS' : 'NON-TECHNICAL ARENAS'}</h1>}
           <div className="gm-level-controls"><div className={`gm-modes ${track ? 'gm-hide' : ''}`} role="group" aria-label="Event categories">
             {(['all', 'technical', 'non-technical'] as Mode[]).map((m) => (
               <Button variant="game" key={m} aria-pressed={mode === m} className={mode === m ? 'is-on' : ''} onClick={() => setMode(m)}>
@@ -94,7 +95,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
         <div className="gm-levels">
           {groupEvents.map((e) => {
             return (
-              <Button variant="game" key={e.id} className={`gm-card ${e.category === 'technical' ? 'is-tech' : 'is-fun'}`} onPointerMove={event => { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; const rect = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty('--rx', `${-(event.clientY - rect.top - rect.height / 2) / 35}deg`); event.currentTarget.style.setProperty('--ry', `${(event.clientX - rect.left - rect.width / 2) / 35}deg`); }} onPointerLeave={event => { event.currentTarget.style.setProperty('--rx', '0deg'); event.currentTarget.style.setProperty('--ry', '0deg'); }} aria-label={`View ${e.title} event details`} onClick={() => onOpenEvent(e.id)}>
+              <Button variant="game" key={e.id} className={`gm-card ${e.category === 'technical' ? 'is-tech' : 'is-fun'}`} onPointerMove={event => { if (event.pointerType !== 'mouse' || !window.matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return; const rect = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty('--rx', `${-(event.clientY - rect.top - rect.height / 2) / 35}deg`); event.currentTarget.style.setProperty('--ry', `${(event.clientX - rect.left - rect.width / 2) / 35}deg`); }} onPointerLeave={event => { event.currentTarget.style.setProperty('--rx', '0deg'); event.currentTarget.style.setProperty('--ry', '0deg'); }} aria-label={`View ${e.title} event details`} onClick={() => onOpenEvent(e.id)}>
                 <span className="gm-card-lvl gm-pixel">LVL {e.number}</span>
                 <span className="gm-card-mode">{e.category === 'technical' ? 'TECH' : 'FUN'}</span>
                 <GameArtwork id={e.id} iconName={e.iconName} />
