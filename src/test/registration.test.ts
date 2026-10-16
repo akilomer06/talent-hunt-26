@@ -41,6 +41,12 @@ describe('event-specific team requirements', () => {
     expect(validateEventTeams(['prompt-pop', 'clue-code'], [member('prompt-pop', '2'), member('clue-code', '2'), member('clue-code', '3')], '1')).toBeNull();
     expect(validateEventTeams(['prompt-pop', 'clue-code'], [member('prompt-pop', '2')], '1')).toContain('Clue Code');
   });
+  it('allows Trashion entries up to five total participants', () => {
+    for (const count of [0, 1, 4]) {
+      expect(validateEventTeams(['trashion'], Array.from({ length: count }, (_, i) => member('trashion', String(i + 2))), '1')).toBeNull();
+    }
+    expect(validateEventTeams(['trashion'], Array.from({ length: 5 }, (_, i) => member('trashion', String(i + 2))), '1')).toContain('1–5');
+  });
   it('rejects invalid categories, repeated RRNs and unrelated teammates', () => {
     expect(validateEventTeams(['tech-talks', 'game-craft'], [], '1')).toContain('one technical');
     expect(validateEventTeams(['prompt-pop'], [member('prompt-pop', '1')], '1')).toContain('different RRN');

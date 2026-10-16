@@ -19,7 +19,7 @@ export const TEAM_RULES: Record<string, TeamRule> = {
   'prompt-pop': { title: 'Prompt Pop', category: 'technical', min: 2, max: 2 },
   'shutter-verse': { title: 'Shutter Verse', category: 'non-technical', min: 1, max: 1 },
   'clue-code': { title: 'Clue Code', category: 'non-technical', min: 3, max: 3 },
-  trashion: { title: 'Trashion', category: 'non-technical', min: 5, max: 5 },
+  trashion: { title: 'Trashion', category: 'non-technical', min: 1, max: 5 },
   'the-voice-over': { title: 'The Voice Over', category: 'non-technical', min: 1, max: 3 },
   bgmi: { title: 'BGMI Championship', category: 'non-technical', min: 4, max: 5, substitute: true },
   fifa: { title: 'FIFA', category: 'non-technical', min: 1, max: 1 },
