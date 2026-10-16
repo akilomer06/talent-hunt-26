@@ -28,6 +28,7 @@ describe('separate admin portals', () => {
     expect(within(dialog).getAllByText('TEST', { exact: true })).toHaveLength(2);
     expect(within(dialog).getByText('Total participants: 2')).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Export all participants CSV' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Export participants Excel' })).toBeEnabled();
     fireEvent.change(within(dialog).getByRole('textbox', { name: 'Search event participants' }), { target: { value: '456' } });
     expect(within(dialog).queryByText('Test Participant', { exact: true })).not.toBeInTheDocument();
     expect(within(dialog).getByText('Test Teammate', { exact: true })).toBeInTheDocument();

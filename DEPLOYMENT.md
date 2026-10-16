@@ -172,6 +172,12 @@ See [GitHub schedule behavior](https://docs.github.com/en/actions/reference/work
 ## Certificate rosters
 
 Dashboard event cards open a searchable participant dialog and event CSV export.
+The primary Excel export creates an `.xlsx` workbook with an Overview, the
+original Registrations sheet, and a separate sheet for every event. Event
+sheets are sorted by programme, year, department, section and name, with filters,
+frozen headers, alternating rows and participant totals. IDs and mobile numbers
+are stored as text to retain leading zeroes. The Overview links to event sheets.
+The spreadsheet library loads only when an Excel download is requested.
 Each event counts an RRN once, includes registrants and event-specific teammates,
 and lists every linked registration/pass ID. Teammates use the parent form's
 pass ID; the site does not create new IDs for them. A registrant's own details

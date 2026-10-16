@@ -126,6 +126,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   const [registrationToDelete, setRegistrationToDelete] = useState<RegistrationRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Editor states
   const defaultEvent = INITIAL_EVENTS[0]!;
@@ -235,6 +236,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   };
 
   // Export to CSV
+  const handleExportExcel = async () => {
+    if (exportingExcel || !registrations.length) return;
+    setExportingExcel(true);
+    try {
+      const { buildRegistrationWorkbook, downloadWorkbook } = await import('../lib/excelExports');
+      await downloadWorkbook(buildRegistrationWorkbook(registrations, events), `Talent-Hunt-2K26-Registrations-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch {
+      setSaveStatus({ message: 'Unable to create the Excel workbook. Please try again or download CSV.', type: 'error' });
+    } finally { setExportingExcel(false); }
+  };
+
   const handleExportCSV = () => {
     if (registrations.length === 0) {
       alert('No registrations available to export.');
@@ -836,13 +848,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                 </select>
               </div>
 
+              <div className="flex flex-wrap items-center gap-2">
+              <button type="button" disabled={exportingExcel || loading || !registrations.length} onClick={() => void handleExportExcel()}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                <FileSpreadsheet className="w-4 h-4" />{exportingExcel ? 'Preparing workbook…' : 'Export Excel workbook'}
+              </button>
               <button
                 onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 <span>Export CSV Roster</span>
               </button>
+              </div>
             </div>
 
             {/* Table Counter */}

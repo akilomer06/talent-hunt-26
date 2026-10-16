@@ -7,6 +7,18 @@ export function EventParticipantsDialog({ event, participants, unassignedCount, 
   event: { id: string; title: string }; participants: EventParticipant[]; unassignedCount: number; onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const exportExcel = async () => {
+    if (exporting || !participants.length) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const { buildEventWorkbook, downloadWorkbook } = await import('../lib/excelExports');
+      await downloadWorkbook(buildEventWorkbook(event, participants), `Talent-Hunt-2K26-${event.id}-Participants.xlsx`);
+    } catch { setExportError('Unable to create Excel. Please try again or download CSV.'); }
+    finally { setExporting(false); }
+  };
   const query = search.trim().toLowerCase();
   const visible = participants.filter(person => [person.name, person.rrn, person.mobile, person.department, person.section || '', ...person.passIds].some(value => value.toLowerCase().includes(query)));
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
@@ -16,8 +28,10 @@ export function EventParticipantsDialog({ event, participants, unassignedCount, 
       {unassignedCount > 0 && <p className="text-sm text-amber-800">{unassignedCount} older teammate records have no clear event assignment. Review the unassigned section in the main CSV before issuing certificates.</p>}
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex flex-1 min-w-48 gap-2 items-center border border-slate-300 rounded-lg px-3 py-2"><Search className="w-4 h-4 text-slate-500" /><input aria-label="Search event participants" placeholder="Name, RRN, pass ID or department" className="min-w-0 w-full text-sm bg-white" value={search} onChange={e => setSearch(e.target.value)} /></label>
-        <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-blue-700 text-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50" disabled={!participants.length} onClick={() => downloadCsv(buildEventCsv(event, participants), `Talent-Hunt-2K26-${event.id}-Participants.csv`)}><FileSpreadsheet className="w-4 h-4" />Export all participants CSV</button>
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-blue-700 text-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50" disabled={exporting || !participants.length} onClick={() => void exportExcel()}><FileSpreadsheet className="w-4 h-4" />{exporting ? 'Preparing workbook…' : 'Export participants Excel'}</button>
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-slate-300 text-slate-700 px-4 py-2.5 text-sm font-semibold disabled:opacity-50" disabled={!participants.length} onClick={() => downloadCsv(buildEventCsv(event, participants), `Talent-Hunt-2K26-${event.id}-Participants.csv`)}>Export all participants CSV</button>
       </div>
+      {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
       <p className="text-xs text-slate-500">Showing {visible.length} of {participants.length} participants</p>
       <div className="overflow-auto min-h-0 border border-slate-200 rounded-lg">
         <table className="w-full text-left text-xs whitespace-nowrap">
