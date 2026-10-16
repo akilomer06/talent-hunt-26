@@ -11,7 +11,7 @@ export interface TeamRule {
 export const TEAM_RULES: Record<string, TeamRule> = {
   'code-break': { title: 'Code Break', category: 'technical', min: 4, max: 4 },
   'code-canvas': { title: 'Code Canvas', category: 'technical', min: 1, max: 2 },
-  'neural-nexus': { title: 'Neural Nexus', category: 'technical', min: 1, max: 4 },
+  'neural-nexus': { title: 'Neural Nexus', category: 'technical', min: 1, max: 3 },
   'binary-battle': { title: 'Binary Battle', category: 'technical', min: 2, max: 3 },
   'game-craft': { title: 'Game Craft', category: 'technical', min: 1, max: 2 },
   'tech-talks': { title: 'Tech Talks', category: 'technical', min: 1, max: 1 },

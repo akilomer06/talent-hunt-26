@@ -47,6 +47,10 @@ describe('event-specific team requirements', () => {
     }
     expect(validateEventTeams(['trashion'], Array.from({ length: 5 }, (_, i) => member('trashion', String(i + 2))), '1')).toContain('1–5');
   });
+  it('limits Neural Nexus to three total participants including the registrant', () => {
+    expect(validateEventTeams(['neural-nexus'], [member('neural-nexus', '2'), member('neural-nexus', '3')], '1')).toBeNull();
+    expect(validateEventTeams(['neural-nexus'], ['2', '3', '4'].map(rrn => member('neural-nexus', rrn)), '1')).toContain('1–3');
+  });
   it('rejects invalid categories, repeated RRNs and unrelated teammates', () => {
     expect(validateEventTeams(['tech-talks', 'game-craft'], [], '1')).toContain('one technical');
     expect(validateEventTeams(['prompt-pop'], [member('prompt-pop', '1')], '1')).toContain('different RRN');
