@@ -55,7 +55,7 @@ function table(workbook: ExcelJS.Workbook, name: string, label: string, columns:
     let lines = 1;
     row.eachCell({ includeEmpty: true }, (cell, column) => {
       cell.font = { name: 'Arial', size: 10, color: { argb: navy } };
-      cell.alignment = { vertical: 'middle', horizontal: typeof cell.value === 'number' ? 'right' : 'left', wrapText: true };
+      cell.alignment = { vertical: 'middle', horizontal: typeof cell.value === 'number' ? 'right' : 'left', wrapText: true, indent: column === 1 ? 0 : 1 };
       // Strings are explicitly text, including identifiers and formula-like names.
       cell.numFmt = typeof cell.value === 'string' ? '@' : cell.value instanceof Date ? 'dd mmm yyyy hh:mm "UTC"' : '#,##0';
       if (index % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
@@ -150,7 +150,7 @@ export function buildRegistrationWorkbook(records: RegistrationRecord[], labels:
     const row = overview.getRow(8 + index);
     row.values = [event.title, event.category === 'technical' ? 'Technical' : event.category === 'non-technical' ? 'Non-technical' : 'Other', records.filter(record => record.selected_events.includes(event.id)).length, { formula: `${quoteSheet(sheet.name)}!${countCell}`, result: people.length }, { text: 'Open participants', hyperlink: `#${quoteSheet(sheet.name)}!A1` }];
     row.height = 26;
-    row.eachCell(cell => { cell.font = { name: 'Arial', size: 10, color: { argb: navy } }; cell.alignment = { vertical: 'middle', horizontal: typeof cell.value === 'number' || cell.type === ExcelJS.ValueType.Formula ? 'right' : 'left', wrapText: true }; if (index % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; });
+    row.eachCell(cell => { cell.font = { name: 'Arial', size: 10, color: { argb: navy } }; cell.alignment = { vertical: 'middle', horizontal: typeof cell.value === 'number' || cell.type === ExcelJS.ValueType.Formula ? 'right' : 'left', wrapText: true, indent: 1 }; if (index % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; });
     row.getCell(5).font = { name: 'Arial', size: 10, color: { argb: blue }, underline: true };
   });
   const noteRow = 9 + eventSheets.length;
@@ -158,8 +158,8 @@ export function buildRegistrationWorkbook(records: RegistrationRecord[], labels:
   overview.getCell(noteRow + 1, 1).value = 'Teammates share the registration pass ID. Multiple linked pass IDs are retained.';
   if (rosters.unassigned.length) overview.getCell(noteRow + 2, 1).value = `${rosters.unassigned.length} teammate records need event assignment. See Needs review.`;
   for (let row = noteRow; row <= noteRow + 2; row++) overview.getCell(row, 1).font = { name: 'Arial', size: 10, color: { argb: slate } };
-  for (const address of ['A5', 'C5']) overview.getCell(address).font = { name: 'Arial', size: 10, bold: true, color: { argb: navy } };
-  for (const address of ['B5', 'D5']) { overview.getCell(address).font = { name: 'Arial', size: 14, bold: true, color: { argb: blue } }; overview.getCell(address).numFmt = '#,##0'; }
+  for (const address of ['A5', 'C5']) { overview.getCell(address).font = { name: 'Arial', size: 10, bold: true, color: { argb: navy } }; overview.getCell(address).alignment = { vertical: 'middle', indent: 1 }; }
+  for (const address of ['B5', 'D5']) { overview.getCell(address).font = { name: 'Arial', size: 14, bold: true, color: { argb: blue } }; overview.getCell(address).numFmt = '#,##0'; overview.getCell(address).alignment = { vertical: 'middle', horizontal: 'right', indent: 1 }; }
   overview.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1, printArea: `A1:E${noteRow + 2}` };
   return workbook;
 }
