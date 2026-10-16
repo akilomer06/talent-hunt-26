@@ -159,6 +159,15 @@ button:active { transform: scale(0.97); }
 .intro-letter { display: inline-block; animation: intro-letter 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .intro-bar { transform-origin: left; animation: intro-bar 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both; }
 .intro-exit { animation: intro-exit 0.8s cubic-bezier(0.76, 0, 0.24, 1) forwards; }
+.site-intro { background: #09090b; color: #fafaf9; }
+.site-intro .intro-skip { color: #a1a1aa; }
+.site-intro .intro-skip:hover { color: #fafaf9; }
+.crescent-on-dark { display: none; }
+.dark .crescent-on-light { display: none; }
+.dark .crescent-on-dark { display: block; }
+.crescent-wordmark { position: relative; aspect-ratio: 1024 / 282; flex-shrink: 0; }
+.crescent-wordmark > img { display: block; width: 100%; height: 100%; max-width: none; object-fit: contain; }
+.crescent-wordmark > .crescent-white-text { position: absolute; inset: 0; filter: brightness(0) invert(1); clip-path: inset(0 0 0 29.3%); pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; filter: none; transition: none; }
@@ -1318,6 +1327,9 @@ html.game body::after { opacity: .45; }
 .footer-logo-row { display: flex; align-items: center; justify-content: flex-start; gap: 42px; padding: 32px 0; margin-top: 36px; border-block: 1px solid rgb(var(--footer-muted) / .18); }
 .footer-logo-row img { height: 42px; width: auto; max-width: 190px; object-fit: contain; }
 .footer-logo-row img:first-child { height: 32px; }
+.footer-logo-row .footer-crescent { display: block; height: 42px; }
+.footer-logo-row .crescent-wordmark img { height: 100%; max-width: none; }
+@media (max-width: 600px) { .footer-logo-row .footer-crescent { height: 34px; } }
 .footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-top: 20px; font-size: 11px; color: rgb(var(--footer-muted)); }
 .footer-bottom button { color: rgb(var(--footer-foreground)); font-size: 12px; padding-inline: 0; }
 .game .festival-footer { background: rgb(var(--color-paper)); }

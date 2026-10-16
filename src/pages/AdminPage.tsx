@@ -46,6 +46,8 @@ import {
 } from '../lib/supabase';
 import { RegistrationTeamAccess } from '../components/RegistrationTeamAccess';
 import { AcademicCounts } from '../components/AcademicCounts';
+import { EventParticipantsDialog } from '../components/EventParticipantsDialog';
+import { buildEventRosters, buildRegistrationCsv, downloadCsv } from '../lib/participantExports';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { type EventItem, EVENTS as INITIAL_EVENTS } from '../data/eventsData';
 
@@ -117,6 +119,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEventFilter, setSelectedEventFilter] = useState('all');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
+  const [participantEventId, setParticipantEventId] = useState<string | null>(null);
+  const participantRosters = useMemo(() => buildEventRosters(registrations), [registrations]);
+  const participantEvent = events.find(event => event.id === participantEventId);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [registrationToDelete, setRegistrationToDelete] = useState<RegistrationRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -236,50 +241,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
       return;
     }
 
-    const headers = [
-      'Registration ID',
-      'Name',
-      'RRN',
-      'Mobile',
-      'Programme',
-      'Year',
-      'Department',
-      'Section',
-      'Selected Events',
-      'Team Count',
-      'Team Members Details',
-      'Registration Date',
-    ];
-
-    const rows = registrations.map((r) => [
-      `"${r.reg_id}"`,
-      `"${r.name.replace(/"/g, '""')}"`,
-      `"${r.rrn}"`,
-      `"${r.mobile}"`,
-      `"${r.programme}"`,
-      `"${r.year}"`,
-      `"${r.department}"`,
-      `"${r.section || ''}"`,
-      `"${r.selected_events.map((id) => events.find((e) => e.id === id)?.title || id).join(', ')}"`,
-      `"${r.team_members?.length || 0}"`,
-      `"${(r.team_members || []).map((m) => `${m.event_id ? (events.find(event => event.id === m.event_id)?.title || m.event_id) + ": " : ""}${m.name} (${m.rrn}${m.section ? ` Sec ${m.section}` : ''})`).join('; ')}"`,
-      `"${r.created_at ? new Date(r.created_at).toLocaleString() : ''}"`,
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Talent-Hunt-2K26-Registrations-${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(buildRegistrationCsv(registrations, events), `Talent-Hunt-2K26-Registrations-${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
   // Metrics calculation
   const metrics = useMemo(() => {
     const totalRegs = registrations.length;
-    let totalParticipants = 0;
+    const participantRRNs = new Set<string>();
     const eventCounts: Record<string, number> = {};
     const deptCounts: Record<string, number> = {};
     const yearCounts: Record<string, number> = {};
@@ -289,7 +257,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
     });
 
     registrations.forEach((r) => {
-      totalParticipants += new Set([r.rrn, ...(r.team_members || []).map(member => member.rrn)].map(rrn => rrn.trim().toLowerCase())).size;
+      for (const rrn of [r.rrn, ...(r.team_members || []).map(member => member.rrn)]) {
+        const key = rrn.trim().replace(/\s+/g, '').toUpperCase();
+        if (key) participantRRNs.add(key);
+      }
       deptCounts[r.department] = (deptCounts[r.department] || 0) + 1;
       yearCounts[r.year] = (yearCounts[r.year] || 0) + 1;
       r.selected_events.forEach((evId) => {
@@ -306,7 +277,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
       }
     });
 
-    return { totalRegs, totalParticipants, eventCounts, deptCounts, yearCounts, topEventTitle, topEventCount };
+    return { totalRegs, totalParticipants: participantRRNs.size, eventCounts, deptCounts, yearCounts, topEventTitle, topEventCount };
   }, [registrations, events]);
 
   // Filtered registrations
@@ -416,6 +387,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>}
+      {participantEvent && <EventParticipantsDialog key={participantEvent.id} event={participantEvent} participants={participantRosters.events.get(participantEvent.id) || []} unassignedCount={participantRosters.unassigned.length} onClose={() => setParticipantEventId(null)} />}
       {/* Top Navbar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -654,11 +626,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                       .filter((e) => e.category === 'technical')
                       .map((ev) => {
                         const count = metrics.eventCounts[ev.id] || 0;
-                        const pct = metrics.totalRegs > 0 ? Math.round((count / metrics.totalRegs) * 100) : 0;
+                        const participantCount = participantRosters.events.get(ev.id)?.length || 0;
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={ev.id}
-                            className="bg-slate-50 hover:bg-slate-100/80 rounded-lg p-3 transition-colors border border-slate-200/60"
+                            aria-label={`View ${ev.title} participants`}
+                            onClick={() => setParticipantEventId(ev.id)}
+                            className="w-full text-left bg-slate-50 hover:bg-slate-100/80 rounded-lg p-3 transition-colors border border-slate-200/60 focus-visible:outline-2 focus-visible:outline-blue-600"
                           >
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                               <div className="flex items-center gap-2">
@@ -673,17 +648,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                                 </span>
                               </div>
                               <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-white text-slate-900 border border-slate-200">
-                                {count} {count === 1 ? 'entry' : 'entries'}
+                                {participantCount} {participantCount === 1 ? 'participant' : 'participants'}
                               </span>
                             </div>
 
+                            <p className="text-[11px] text-slate-500 mb-2">{count} {count === 1 ? 'registration' : 'registrations'} · View participants & export CSV</p>
                             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                               <div
                                 className="bg-blue-600 h-full rounded-full transition-all duration-300"
                                 style={{ width: `${Math.min(100, (count / (metrics.totalRegs || 1)) * 100)}%` }}
                               />
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                   </div>
@@ -703,11 +679,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                       .filter((e) => e.category === 'non-technical')
                       .map((ev) => {
                         const count = metrics.eventCounts[ev.id] || 0;
-                        const pct = metrics.totalRegs > 0 ? Math.round((count / metrics.totalRegs) * 100) : 0;
+                        const participantCount = participantRosters.events.get(ev.id)?.length || 0;
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={ev.id}
-                            className="bg-slate-50 hover:bg-slate-100/80 rounded-lg p-3 transition-colors border border-slate-200/60"
+                            aria-label={`View ${ev.title} participants`}
+                            onClick={() => setParticipantEventId(ev.id)}
+                            className="w-full text-left bg-slate-50 hover:bg-slate-100/80 rounded-lg p-3 transition-colors border border-slate-200/60 focus-visible:outline-2 focus-visible:outline-blue-600"
                           >
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                               <div className="flex items-center gap-2">
@@ -722,17 +701,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                                 </span>
                               </div>
                               <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-white text-slate-900 border border-slate-200">
-                                {count} {count === 1 ? 'entry' : 'entries'}
+                                {participantCount} {participantCount === 1 ? 'participant' : 'participants'}
                               </span>
                             </div>
 
+                            <p className="text-[11px] text-slate-500 mb-2">{count} {count === 1 ? 'registration' : 'registrations'} · View participants & export CSV</p>
                             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                               <div
                                 className="bg-amber-500 h-full rounded-full transition-all duration-300"
                                 style={{ width: `${Math.min(100, (count / (metrics.totalRegs || 1)) * 100)}%` }}
                               />
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                   </div>

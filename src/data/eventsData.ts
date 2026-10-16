@@ -374,12 +374,12 @@ export const EVENTS: EventItem[] = [
     accent: 'orange',
     tags: ['Photography', 'Visual Storytelling', 'Framing', 'Composition'],
     rounds: [
-      'Round 1: Requires one photograph only reflecting the announced theme.',
-      'Round 2: Requires a sequence of 3 to 4 photographs accompanied by a short explanation or story.',
+      'Round 1 — 24 October 2026 (Online): Submit one photograph only, appropriate to the given theme.',
+      'Round 2 — 26 October 2026: Selected participants must submit 3–4 photographs in sequence, accompanied by a short story.',
     ],
     rules: [
-      'Round 1 requires one photograph only.',
-      'Round 2 requires a sequence of three to four photographs accompanied by a short explanation or story.',
+      'Round 1 takes place online on 24 October 2026. Submit one photograph only, appropriate to the given theme.',
+      'Only selected participants advance to Round 2 on 26 October 2026. They must submit 3–4 photographs in sequence with a short story.',
       'All photographs must be taken by the participant. Stock images and plagiarism are prohibited.',
       'AI-generated images are strictly prohibited.',
       'Basic editing (brightness, contrast, cropping, sharpness) is permitted. Heavy editing and manipulation are prohibited.',

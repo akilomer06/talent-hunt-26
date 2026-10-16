@@ -169,6 +169,20 @@ schedules are disabled after 60 days without repository activity. Free hosting
 quotas still apply; a paused Supabase project must be restored in its dashboard.
 See [GitHub schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
+## Certificate rosters
+
+Dashboard event cards open a searchable participant dialog and event CSV export.
+Each event counts an RRN once, includes registrants and event-specific teammates,
+and lists every linked registration/pass ID. Teammates use the parent form's
+pass ID; the site does not create new IDs for them. A registrant's own details
+take priority over copies in other teams for that event.
+
+The main registration CSV retains the registration summary first, followed by
+one section per event with individual participant rows and a participant total.
+Legacy teammates without an event are assigned only when the form has exactly
+one team event; ambiguous records appear in an unassigned review section.
+Supabase registration reads are paginated so downloads include over 1,000 forms.
+
 ## Verification commands
 
 ```powershell

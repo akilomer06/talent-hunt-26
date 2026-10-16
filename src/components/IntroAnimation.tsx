@@ -20,12 +20,12 @@ export function IntroAnimation() {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-ink text-paper ${phase === 'exit' ? 'intro-exit' : ''}`}
+      className={`site-intro fixed inset-0 z-[100] flex flex-col items-center justify-center ${phase === 'exit' ? 'intro-exit' : ''}`}
       role="dialog" aria-label="Talent Hunt introduction"
     >
       <Button variant="festivalGhost"
         onClick={() => setPhase('exit')}
-        className="absolute top-6 right-6 text-xs font-space uppercase tracking-widest text-paper/60 hover:text-paper"
+        className="intro-skip absolute top-6 right-6 text-xs font-space uppercase tracking-widest"
       >
         Skip
       </Button>
@@ -44,7 +44,7 @@ export function IntroAnimation() {
       <p className="overflow-hidden mt-2 font-display font-black text-2xl sm:text-3xl text-vivid-orange">
         <span className="intro-letter" style={{ animationDelay: '1.1s' }}>2K26</span>
       </p>
-      <div className="mt-8 w-40 h-[2px] bg-paper/15 overflow-hidden rounded-full">
+      <div className="mt-8 w-40 h-[2px] bg-white/15 overflow-hidden rounded-full">
         <div className="intro-bar h-full bg-gradient-to-r from-electric-blue to-vivid-orange" />
       </div>
     </div>

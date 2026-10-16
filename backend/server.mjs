@@ -153,7 +153,13 @@ export function createApiServer(env = process.env, request = fetch) {
         catch (error) { if (error.status === 400) return reply(400, { error: error.message }); throw error; }
       }
       if (path === '/api/registrations' && req.method === 'GET') {
-        const rows = await database('registrations?select=*&order=created_at.desc');
+        const rows = [];
+        const pageSize = 1000;
+        for (let offset = 0; ; offset += pageSize) {
+          const page = await database(`registrations?select=*&order=created_at.desc,id.desc&limit=${pageSize}&offset=${offset}`);
+          rows.push(...page);
+          if (page.length < pageSize) break;
+        }
         return reply(200, rows.map(row => {
           const metadata = row.team_members;
           if (metadata && !Array.isArray(metadata) && Array.isArray(metadata.members)) {

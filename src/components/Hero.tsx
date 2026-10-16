@@ -5,7 +5,8 @@ import { Countdown } from './Countdown';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { brochureUrl as posterImg, downloadBrochure } from '../lib/brochure';
-import crescentLogo from '../assets/logo-crescent.png';
+import crescentLightLogo from '../assets/logo-crescent-light.png';
+import { CrescentWordmark } from './CrescentWordmark';
 
 interface HeroProps { onRegisterClick: () => void; onExploreClick: () => void; }
 
@@ -28,7 +29,8 @@ export function Hero({ onRegisterClick, onExploreClick }: HeroProps) {
             <span className="institutional-school">School of Computer Information and Mathematical Sciences</span>
             <span className="institutional-dept">Department of Computer Science and Engineering</span>
           </p>
-          <img src={crescentLogo} alt="B.S. Abdur Rahman Crescent Institute of Science and Technology" className="institutional-logo"/>
+          <img src={crescentLightLogo} alt="B.S. Abdur Rahman Crescent Institute of Science and Technology" className="institutional-logo crescent-on-light"/>
+          <CrescentWordmark className="institutional-logo crescent-on-dark" />
         </div>
       </div>
       <div className="stage-inner">

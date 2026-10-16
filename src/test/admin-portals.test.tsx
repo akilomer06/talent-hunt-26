@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { AdminPage } from '../pages/AdminPage';
 import * as api from '../lib/supabase';
 import { EVENTS } from '../data/eventsData';
@@ -16,6 +16,22 @@ beforeEach(() => {
   vi.mocked(api.checkBackendHealth).mockResolvedValue(true);
 });
 describe('separate admin portals', () => {
+  it('opens all event participants, including teammates, from a dashboard card', async () => {
+    vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'admin' });
+    const record = (await api.fetchRegistrations())[0]!;
+    vi.mocked(api.fetchRegistrations).mockResolvedValue([{ ...record, selected_events: ['code-canvas'], team_members: [{ name: 'Test Teammate', rrn: '456', mobile: '0123456789', programme: 'M.Tech', year: 'II', department: 'AI&DS', section: 'B', event_id: 'code-canvas' }] }]);
+    render(<AdminPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'View Code Canvas participants' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Code Canvas participants' });
+    expect(within(dialog).getByText('Test Participant', { exact: true })).toBeInTheDocument();
+    expect(within(dialog).getByText('Test Teammate', { exact: true })).toBeInTheDocument();
+    expect(within(dialog).getAllByText('TEST', { exact: true })).toHaveLength(2);
+    expect(within(dialog).getByText('Total participants: 2')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Export all participants CSV' })).toBeEnabled();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Search event participants' }), { target: { value: '456' } });
+    expect(within(dialog).queryByText('Test Participant', { exact: true })).not.toBeInTheDocument();
+    expect(within(dialog).getByText('Test Teammate', { exact: true })).toBeInTheDocument();
+  });
   it('offers dashboard, read-only roster and academic counts to the registration team', async () => {
     vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'registration' });
     render(<AdminPage registrationOnly onBack={() => {}} />);
