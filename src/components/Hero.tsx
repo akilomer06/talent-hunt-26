@@ -5,7 +5,7 @@ import { Countdown } from './Countdown';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { brochureUrl as posterImg, downloadBrochure } from '../lib/brochure';
-import crescentLightLogo from '../assets/logo-crescent-light.png';
+import crescentLightLogo from '../assets/logo-crescent.png';
 import { CrescentWordmark } from './CrescentWordmark';
 
 interface HeroProps { onRegisterClick: () => void; onExploreClick: () => void; }
