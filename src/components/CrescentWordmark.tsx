@@ -1,9 +1,6 @@
-import crescentLogo from '../assets/logo-crescent.png';
+import crescentDarkLogo from '../assets/logo-crescent-dark.png';
 
-/** Preserve the coloured emblem while making the lettering white on dark surfaces. */
+/** The complete light-theme logo recreated with white lettering for dark surfaces. */
 export function CrescentWordmark({ className = '' }: { className?: string }) {
-  return <span className={`crescent-wordmark ${className}`}>
-    <img src={crescentLogo} alt="B.S. Abdur Rahman Crescent Institute of Science and Technology" className="crescent-emblem" />
-    <img src={crescentLogo} alt="" aria-hidden="true" className="crescent-white-text" />
-  </span>;
+  return <img src={crescentDarkLogo} alt="B.S. Abdur Rahman Crescent Institute of Science and Technology" className={`crescent-wordmark ${className}`} />;
 }
