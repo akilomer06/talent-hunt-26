@@ -1581,6 +1581,7 @@ html.game body::after { opacity: .45; }
 .reading-theme .header-register.is-current { border-bottom: 2px solid currentColor; box-shadow: none; color: #000000 !important; }
 
 .hero-institutional { border-bottom: 1px solid rgb(var(--color-ink) / .14); }
+.gm-institutional { padding-top: 90px; }
 .hero-institutional-inner { max-width: 1440px; margin: auto; padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .institutional-text { display: flex; flex-direction: column; gap: 2px; }
 .institutional-school { font: 600 11px/1.4 'Plus Jakarta Sans', sans-serif; letter-spacing: .18em; text-transform: uppercase; color: rgb(var(--color-ink-muted)); }

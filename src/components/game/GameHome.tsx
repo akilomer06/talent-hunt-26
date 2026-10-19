@@ -8,6 +8,7 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog';
 import { GameArtwork, ArcadeBackdrop } from './GameArtwork';
 import { GameCursor } from './GameCursor';
+import { InstitutionalBanner } from '../InstitutionalBanner';
 import { brochureUrl as posterImg, downloadBrochure } from '../../lib/brochure';
 
 type Mode = 'all' | 'technical' | 'non-technical';
@@ -39,6 +40,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
     <div className="gm-root">
       <GameCursor />
       {!track && <>
+      <InstitutionalBanner className="gm-institutional" />
       {/* TITLE SCREEN */}
       <section id="hero" className="gm-hero">
         <div className="gm-grid-floor" aria-hidden />
