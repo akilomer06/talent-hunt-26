@@ -7,6 +7,12 @@ vi.mock('../hooks/useLiveContent', () => ({ useLiveContent: () => ({ events: EVE
 afterEach(cleanup);
 
 describe('dynamic event team form', () => {
+  it('explains event/RRN uniqueness and provides the registration-help phone link', () => {
+    render(<RegisterPage onBack={() => {}} />);
+    const help = screen.getByRole('complementary', { name: 'Registration help' });
+    expect(help).toHaveTextContent('Each RRN can join an event only once, as registrant or teammate.');
+    expect(within(help).getByRole('link', { name: 'Vijay Hari · +91 733 898 5189' })).toHaveAttribute('href', 'tel:+917338985189');
+  });
   it('opens the required teammates for fixed-size events and supports a separate second team', () => {
     render(<RegisterPage initialEventId="code-break" onBack={() => {}} />);
     const code = screen.getByRole('region', { name: 'Code Break team' });

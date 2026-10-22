@@ -7,7 +7,7 @@ The main `/admin` portal has a **Duplicates** tab. Registration-team access has 
 - A teammate with no event ID is inferred only when there is one possible team event. Ambiguous legacy assignments are flagged and must be assigned manually before saving an edited form.
 - **Edit registration** opens a local draft. **Review changes** displays the original and proposed values; only **Confirm and save changes** sends an update.
 - **Remove this event only** opens a draft that retains the pass ID, original submission time, the other event, and that event's assigned teammates. Review and confirm it to save. If there is only one event left, use the whole-registration delete confirmation when appropriate.
-- **Create corrected registration for this event** copies the selected event into a separate draft. It does not delete the original pass or copy unrelated event selections. Fill in the corrected team, review, and explicitly confirm creation. Once that succeeds, remove the duplicate event from the old pass if needed. **New registration** starts a blank draft. Creation retries reuse a request ID to prevent accidental repeated inserts.
+- **Create corrected registration for this event** copies the selected event into a separate draft. It does not delete the original pass or copy unrelated event selections. Fill in the corrected team, review, and explicitly confirm creation. New event/RRN overlaps are now blocked. Prefer editing an existing pass; when a separate pass is necessary, clear the conflicting event entries first, preserving unrelated events with **Remove this event only**. **New registration** starts a blank draft. Creation retries reuse a request ID to prevent accidental repeated inserts.
 - **Delete whole registration** uses a separate confirmation which warns that all events on that pass will be removed.
 - Registration roster search covers both registrants and teammates, and opens team details while searching. Department filters also consider teammates.
 
@@ -18,3 +18,9 @@ Deploy both the Vercel frontend and Render backend from the same commit. The new
 Edits compare the original snapshot and use conditional database filters so concurrent edits return 409 rather than overwrite changed records. Registration-team tokens cannot call the new routes. Tests use in-memory/mock databases, never the production database.
 
 Run `npm test`, `npm run test:backend`, `npx tsc --noEmit`, and `npm run build`.
+
+## Event/RRN uniqueness
+
+The API rejects new overlaps between registrants and teammates for the same event, ignoring RRN whitespace and case, while allowing participation in a different event. It paginates existing records and serializes registration writes in each backend process. Existing duplicate claims may be retained during an edit so organisers can correct them without deleting unrelated events; adding a new conflicting claim is blocked. No existing registration is automatically modified.
+
+For protection across multiple backend processes and direct database writes, run backend/event-rrn-uniqueness.sql once in the Supabase SQL Editor. This optional trigger is not installed automatically by deployment and does not rewrite registration rows. Help is shown as Vijay Hari, +91 733 898 5189.

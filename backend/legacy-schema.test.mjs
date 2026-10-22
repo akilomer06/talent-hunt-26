@@ -24,7 +24,7 @@ test('legacy schema saves registrations and preserves sections and team members'
     assert.equal(stored.length, 1);
     assert.equal(stored[0].team_members.registrant_section, 'B');
     assert.deepEqual(stored[0].team_members.members, record.team_members);
-    const noSection = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: 'TEST-NO-SECTION', section: '', team_members: [] }) });
+    const noSection = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: 'TEST-NO-SECTION', rrn: '789', section: '', team_members: [] }) });
     assert.equal(noSection.status, 201);
     assert.deepEqual(stored[1].team_members, []);
     const login = await fetch(base + '/api/admin/login', { method: 'POST', body: JSON.stringify({ passcode: 'test' }) });

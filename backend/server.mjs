@@ -4,6 +4,8 @@ import { pathToFileURL } from 'node:url';
 import { createAccessStore } from './access.mjs';
 import { validateEventTeams } from '../shared/registrationRules.ts';
 import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnapshot, registrationUpdateFilter } from './registration-admin.mjs';
+import { assertUniqueEventRrns, withRegistrationWrite } from './registration-uniqueness.mjs';
+import { REGISTRATION_HELP } from '../shared/registrationRules.ts';
 
 export function createApiServer(env = process.env, request = fetch) {
   const origins = (env.FRONTEND_URL || 'http://127.0.0.1:3000,http://localhost:3000').split(',').map(s => s.trim());
@@ -33,6 +35,7 @@ export function createApiServer(env = process.env, request = fetch) {
       let problem;
       try { problem = JSON.parse(raw); } catch { problem = {}; }
       console.error('Supabase request failed:', response.status, problem.code || 'unknown');
+      if (problem.code === 'P0001' && problem.message?.startsWith('TH26_DUPLICATE_EVENT_RRN')) throw Object.assign(new Error(`An RRN is already registered for one of the selected events as registrant or teammate. ${REGISTRATION_HELP}`), { status: 409 });
       throw Object.assign(new Error('Database request failed'), {
         status: 502, code: problem.code, databaseMessage: problem.message,
       });
@@ -109,27 +112,30 @@ export function createApiServer(env = process.env, request = fetch) {
       }
       if (path === '/api/content' && req.method === 'GET') return reply(200, await database('site_content?select=*&key=in.(events,settings)'));
       if (path === '/api/registrations' && req.method === 'POST') {
-        const fields = ['reg_id', 'name', 'rrn', 'mobile', 'programme', 'year', 'department'];
-        if (!fields.every(key => typeof body?.[key] === 'string' && body[key].trim().length > 0 && body[key].length <= 200)
-          || !Array.isArray(body.selected_events) || body.selected_events.length < 1 || body.selected_events.length > 2
-          || !body.selected_events.every(value => typeof value === 'string' && value.length <= 100)
-          || !Array.isArray(body.team_members) || body.team_members.length > 20) return reply(400, { error: 'Invalid registration details' });
-        const teamError = validateEventTeams(body.selected_events, body.team_members, body.rrn);
-        if (teamError) return reply(400, { error: teamError });
-        const record = Object.fromEntries(fields.map(key => [key, body[key].trim()]));
-        Object.assign(record, { section: typeof body.section === 'string' ? body.section.slice(0, 100) : '', selected_events: body.selected_events, team_members: body.team_members });
-        const insert = value => database('registrations', { method: 'POST', body: JSON.stringify(value), headers: { Prefer: 'return=minimal' } });
-        try {
-          await insert(record);
-        } catch (error) {
-          // Older projects have JSONB team_members but no section column. The
-          // rejected insert wrote nothing, so retry with lossless JSON metadata.
-          if (error.code !== 'PGRST204' || !error.databaseMessage?.includes("'section'")) throw error;
-          const { section, ...legacy } = record;
-          if (section) legacy.team_members = { members: record.team_members, registrant_section: section };
-          await insert(legacy);
-        }
-        return reply(201, { success: true, data: record });
+        return await withRegistrationWrite(env.SUPABASE_URL, async () => {
+          const fields = ['reg_id', 'name', 'rrn', 'mobile', 'programme', 'year', 'department'];
+          if (!fields.every(key => typeof body?.[key] === 'string' && body[key].trim().length > 0 && body[key].length <= 200)
+            || !Array.isArray(body.selected_events) || body.selected_events.length < 1 || body.selected_events.length > 2
+            || !body.selected_events.every(value => typeof value === 'string' && value.length <= 100)
+            || !Array.isArray(body.team_members) || body.team_members.length > 20) return reply(400, { error: 'Invalid registration details' });
+          const teamError = validateEventTeams(body.selected_events, body.team_members, body.rrn);
+          if (teamError) return reply(400, { error: teamError });
+          const record = Object.fromEntries(fields.map(key => [key, body[key].trim()]));
+          Object.assign(record, { section: typeof body.section === 'string' ? body.section.slice(0, 100) : '', selected_events: body.selected_events, team_members: body.team_members });
+          await assertUniqueEventRrns(database, record);
+          const insert = value => database('registrations', { method: 'POST', body: JSON.stringify(value), headers: { Prefer: 'return=minimal' } });
+          try {
+            await insert(record);
+          } catch (error) {
+            // Older projects have JSONB team_members but no section column. The
+            // rejected insert wrote nothing, so retry with lossless JSON metadata.
+            if (error.code !== 'PGRST204' || !error.databaseMessage?.includes("'section'")) throw error;
+            const { section, ...legacy } = record;
+            if (section) legacy.team_members = { members: record.team_members, registrant_section: section };
+            await insert(legacy);
+          }
+          return reply(201, { success: true, data: record });
+        });
       }
       const parts = (req.headers.authorization?.replace(/^Bearer /, '') || '').split('.');
       let session;
@@ -145,38 +151,44 @@ export function createApiServer(env = process.env, request = fetch) {
       }
       if (path === '/api/admin/session' && req.method === 'GET') return reply(200, { role: session.role });
       if (path === '/api/admin/registrations' && req.method === 'POST') {
-        const record = validateAdminRegistration(body);
-        if (typeof body.request_id !== 'string' || !/^[a-f0-9]{32}$/i.test(body.request_id)) return reply(400, { error: 'Invalid creation request. Reopen the registration draft.' });
-        const regId = 'TH26-ADMIN-' + body.request_id.toUpperCase();
-        const findExisting = () => database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
-        const existing = await findExisting();
-        if (existing?.length) return sameRegistrationSnapshot(existing[0], record) ? reply(200, { success: true, data: normalizeRegistration(existing[0]) }) : reply(409, { error: 'This draft was already saved with different details. Refresh registrations before creating another pass.' });
-        const inserted = await database('registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: regId }), headers: { Prefer: 'return=representation' } }).catch(async error => {
-          if (error.code === '23505') return findExisting();
-          if (error.code !== 'PGRST204' || !error.databaseMessage?.includes("'section'")) throw error;
-          const { section, ...legacy } = record;
-          return database('registrations', { method: 'POST', body: JSON.stringify({ ...legacy, reg_id: regId, team_members: { members: record.team_members, registrant_section: section } }), headers: { Prefer: 'return=representation' } });
+        return await withRegistrationWrite(env.SUPABASE_URL, async () => {
+          const record = validateAdminRegistration(body);
+          if (typeof body.request_id !== 'string' || !/^[a-f0-9]{32}$/i.test(body.request_id)) return reply(400, { error: 'Invalid creation request. Reopen the registration draft.' });
+          const regId = 'TH26-ADMIN-' + body.request_id.toUpperCase();
+          const findExisting = () => database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
+          const existing = await findExisting();
+          if (existing?.length) return sameRegistrationSnapshot(existing[0], record) ? reply(200, { success: true, data: normalizeRegistration(existing[0]) }) : reply(409, { error: 'This draft was already saved with different details. Refresh registrations before creating another pass.' });
+          await assertUniqueEventRrns(database, record);
+          const inserted = await database('registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: regId }), headers: { Prefer: 'return=representation' } }).catch(async error => {
+            if (error.code === '23505') return findExisting();
+            if (error.code !== 'PGRST204' || !error.databaseMessage?.includes("'section'")) throw error;
+            const { section, ...legacy } = record;
+            return database('registrations', { method: 'POST', body: JSON.stringify({ ...legacy, reg_id: regId, team_members: { members: record.team_members, registrant_section: section } }), headers: { Prefer: 'return=representation' } });
+          });
+          if (!Array.isArray(inserted) || inserted.length !== 1) return reply(502, { error: 'The database did not confirm the new registration. Refresh before retrying.' });
+          if (!sameRegistrationSnapshot(inserted[0], record)) return reply(409, { error: 'This draft was already saved with different details. Refresh registrations.' });
+          return reply(201, { success: true, data: normalizeRegistration(inserted[0]) });
         });
-        if (!Array.isArray(inserted) || inserted.length !== 1) return reply(502, { error: 'The database did not confirm the new registration. Refresh before retrying.' });
-        if (!sameRegistrationSnapshot(inserted[0], record)) return reply(409, { error: 'This draft was already saved with different details. Refresh registrations.' });
-        return reply(201, { success: true, data: normalizeRegistration(inserted[0]) });
       }
       if (path.startsWith('/api/registrations/') && req.method === 'PUT') {
-        const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
-        if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
-        const record = validateAdminRegistration(body?.record);
-        const found = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
-        if (!found?.length) return reply(404, { error: 'Registration no longer exists. Refresh the list.' });
-        const original = found[0];
-        if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
-        let patch = record;
-        if (!Object.hasOwn(original, 'section')) {
-          const { section, ...legacy } = record;
-          patch = { ...legacy, team_members: { members: record.team_members, registrant_section: section } };
-        }
-        const updated = await database(`registrations?${registrationUpdateFilter(original)}&select=*`, { method: 'PATCH', body: JSON.stringify(patch), headers: { Prefer: 'return=representation' } });
-        if (!Array.isArray(updated) || updated.length !== 1) return reply(409, { error: 'This registration changed during the update. Refresh and review it again.' });
-        return reply(200, { success: true, data: normalizeRegistration(updated[0]) });
+        return await withRegistrationWrite(env.SUPABASE_URL, async () => {
+          const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
+          if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
+          const record = validateAdminRegistration(body?.record);
+          const found = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
+          if (!found?.length) return reply(404, { error: 'Registration no longer exists. Refresh the list.' });
+          const original = found[0];
+          if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
+          await assertUniqueEventRrns(database, record, original);
+          let patch = record;
+          if (!Object.hasOwn(original, 'section')) {
+            const { section, ...legacy } = record;
+            patch = { ...legacy, team_members: { members: record.team_members, registrant_section: section } };
+          }
+          const updated = await database(`registrations?${registrationUpdateFilter(original)}&select=*`, { method: 'PATCH', body: JSON.stringify(patch), headers: { Prefer: 'return=representation' } });
+          if (!Array.isArray(updated) || updated.length !== 1) return reply(409, { error: 'This registration changed during the update. Refresh and review it again.' });
+          return reply(200, { success: true, data: normalizeRegistration(updated[0]) });
+        });
       }
       if (path === '/api/admin/access' && req.method === 'GET') return reply(200, access.status(await access.read()));
       if (path === '/api/admin/access' && req.method === 'PUT') {
@@ -219,8 +231,8 @@ export function createApiServer(env = process.env, request = fetch) {
       }
       return reply(404, { error: 'Endpoint not found' });
     } catch (error) {
-      console.error(error);
-      return reply(error.status || 500, { error: error.status === 400 ? error.message : 'Unable to complete the request. Please try again.' });
+      if (![400, 409].includes(error.status)) console.error(error);
+      return reply(error.status || 500, { error: [400, 409].includes(error.status) ? error.message : 'Unable to complete the request. Please try again.' });
     }
   });
 }

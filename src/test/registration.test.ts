@@ -54,6 +54,8 @@ describe('event-specific team requirements', () => {
   it('rejects invalid categories, repeated RRNs and unrelated teammates', () => {
     expect(validateEventTeams(['tech-talks', 'game-craft'], [], '1')).toContain('one technical');
     expect(validateEventTeams(['prompt-pop'], [member('prompt-pop', '1')], '1')).toContain('different RRN');
+    expect(validateEventTeams(['prompt-pop'], [member('prompt-pop', 'a b c')], 'ABC')).toContain('Vijay Hari');
+    expect(validateEventTeams(['neural-nexus'], [member('neural-nexus', 'a b c'), member('neural-nexus', 'ABC')], '001')).toContain('cannot appear twice');
     expect(validateEventTeams(['fifa'], [member('code-canvas', '2')], '1')).toContain('selected event');
   });
 });

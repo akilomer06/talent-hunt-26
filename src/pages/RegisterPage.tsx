@@ -240,6 +240,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
           </p>
         </header>
 
+        <aside className="reg-support" aria-label="Registration help">
+          <p>Each RRN can join an event only once, as registrant or teammate. Already included in a team? Do not register again for that event.</p>
+          <p>Need help? Contact <a href="tel:+917338985189">Vijay Hari · +91 733 898 5189</a>.</p>
+        </aside>
+
         <div className="reg-layout">
           <section className="reg-card">
             {!submitted ? (

@@ -38,6 +38,11 @@ export interface EventTeammate {
   section?: string;
 }
 
+/** Preserve leading zeroes; spaces and case must not bypass identity checks. */
+export const normalizeRrn = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
+export const REGISTRATION_HELP = 'For help, contact Vijay Hari at +91 733 898 5189.';
+
 export function validateEventTeams(selected: string[], teammates: EventTeammate[], registrantRrn: string): string | null {
   if (selected.length < 1) return 'Pick at least one event.';
   const categories = new Set<EventCategory>();
@@ -57,13 +62,13 @@ export function validateEventTeams(selected: string[], teammates: EventTeammate[
     if (total < rule.min || total > rule.max) {
       return `${rule.title}: ${rule.min === rule.max ? `exactly ${rule.min}` : `${rule.min}–${rule.max}`} participants required, including you. Add ${rule.min - 1}–${rule.max - 1} teammates.`;
     }
-    const rrns = new Set([registrantRrn.trim().toLowerCase()]);
+    const rrns = new Set([normalizeRrn(registrantRrn)]);
     for (const member of members) {
       if (![member.name, member.rrn, member.mobile, member.programme, member.year, member.department]
         .every(value => typeof value === 'string' && value.trim().length > 0 && value.length <= 200)
         || !/^\d{10}$/.test(member.mobile)) return `${rule.title}: complete all teammate details and enter a 10-digit mobile number.`;
-      const rrn = member.rrn.trim().toLowerCase();
-      if (rrns.has(rrn)) return `${rule.title}: each participant must have a different RRN.`;
+      const rrn = normalizeRrn(member.rrn);
+      if (rrns.has(rrn)) return `${rule.title}: the same RRN cannot appear twice as registrant or teammate; each participant must have a different RRN. ${REGISTRATION_HELP}`;
       rrns.add(rrn);
     }
   }

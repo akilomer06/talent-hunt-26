@@ -54,7 +54,7 @@ test('manual admin edits and creation use isolated database mocks and preserve u
     assert.deepEqual(rows.get('OTHER').selected_events, ['game-craft', 'fifa']);
     concurrent = true;
     assert.equal((await update({ record: corrected, expected: corrected })).status, 409);
-    const creation = { ...source, selected_events: ['game-craft'], request_id: '0123456789abcdef0123456789abcdef' };
+    const creation = { ...source, rrn: '700', selected_events: ['game-craft'], request_id: '0123456789abcdef0123456789abcdef' };
     const create = body => fetch(base + '/api/admin/registrations', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: JSON.stringify(body) });
     const created = await create(creation);
     assert.equal(created.status, 201);
@@ -108,7 +108,7 @@ test('admin edits and creation preserve sections on the legacy schema without mi
     assert.equal(response.status, 200);
     assert.equal((await response.json()).data.section, 'A');
     assert.equal(stored.created_at, source.created_at);
-    const createdResponse = await fetch(base + '/api/admin/registrations', { method: 'POST', headers, body: JSON.stringify({ ...source, request_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) });
+    const createdResponse = await fetch(base + '/api/admin/registrations', { method: 'POST', headers, body: JSON.stringify({ ...source, rrn: '700', request_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) });
     assert.equal(createdResponse.status, 201);
     const normalized = (await createdResponse.json()).data;
     assert.equal(normalized.section, 'A');

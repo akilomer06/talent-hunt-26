@@ -162,6 +162,9 @@ button:active { transform: scale(0.97); }
 .site-intro { background: #09090b; color: #fafaf9; }
 .site-intro .intro-skip { color: #a1a1aa; }
 .site-intro .intro-skip:hover { color: #fafaf9; }
+.reg-support { margin-bottom: 24px; padding: 16px 20px; border-left: 3px solid rgb(var(--color-electric-blue)); background: rgb(var(--color-paper-soft)); color: rgb(var(--color-ink)); font-size: 14px; line-height: 1.7; }
+.reg-support p + p { margin-top: 6px; }
+.reg-support a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .crescent-on-dark { display: none; }
 .dark .crescent-on-light { display: none; }
 .dark .crescent-on-dark { display: block; }
