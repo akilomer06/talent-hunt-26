@@ -128,6 +128,16 @@ export async function deleteRegistration(regId: string): Promise<boolean> {
   return true;
 }
 
+export async function updateRegistration(record: RegistrationRecord, expected: RegistrationRecord): Promise<RegistrationRecord> {
+  const result = await portalApi<{ data: RegistrationRecord }>('/api/registrations/' + encodeURIComponent(record.reg_id), 'admin', { method: 'PUT', body: JSON.stringify({ record, expected }) });
+  return result.data;
+}
+
+export async function createAdminRegistration(record: RegistrationRecord, requestId: string): Promise<RegistrationRecord> {
+  const result = await portalApi<{ data: RegistrationRecord }>('/api/admin/registrations', 'admin', { method: 'POST', body: JSON.stringify({ ...record, request_id: requestId }) });
+  return result.data;
+}
+
 export async function fetchLiveSiteContent(): Promise<{ events: EventItem[]; settings: SiteSettings }> {
   let events = getCachedEvents();
   let settings = getCachedSettings();

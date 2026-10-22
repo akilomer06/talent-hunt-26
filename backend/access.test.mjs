@@ -41,6 +41,7 @@ test('registration-team sessions are read-only, persistent and immediately revoc
     for (const [path, method, body] of [
       ['/api/admin/access', 'GET'], ['/api/admin/access', 'PUT', { enabled: false }],
       ['/api/content/settings', 'PUT', {}], ['/api/registrations/TEST', 'DELETE'],
+      ['/api/admin/registrations', 'POST', {}], ['/api/registrations/TEST', 'PUT', {}],
     ]) assert.equal((await call(path, method, body, team.token)).status, 403);
     const forged = Buffer.from(JSON.stringify({ role: 'admin', exp: Date.now() + 10000 })).toString('base64url') + '.' + team.token.split('.')[1];
     assert.equal((await call('/api/admin/access', 'GET', undefined, forged)).status, 401);

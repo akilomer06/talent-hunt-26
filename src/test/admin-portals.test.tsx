@@ -6,7 +6,7 @@ import { EVENTS } from '../data/eventsData';
 
 vi.mock('../lib/supabase', async importOriginal => {
   const actual = await importOriginal<typeof import('../lib/supabase')>();
-  return { ...actual, checkAdminSession: vi.fn(), fetchRegistrations: vi.fn(), fetchLiveSiteContent: vi.fn(), checkBackendHealth: vi.fn(), deleteRegistration: vi.fn() };
+  return { ...actual, checkAdminSession: vi.fn(), fetchRegistrations: vi.fn(), fetchLiveSiteContent: vi.fn(), checkBackendHealth: vi.fn(), deleteRegistration: vi.fn(), updateRegistration: vi.fn(), createAdminRegistration: vi.fn() };
 });
 afterEach(cleanup);
 beforeEach(() => {
@@ -16,6 +16,21 @@ beforeEach(() => {
   vi.mocked(api.checkBackendHealth).mockResolvedValue(true);
 });
 describe('separate admin portals', () => {
+  it('separates category leaders and finds teammates in the registration roster', async () => {
+    vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'admin' });
+    const record = (await api.fetchRegistrations())[0]!;
+    vi.mocked(api.fetchRegistrations).mockResolvedValue([{ ...record, selected_events: ['code-canvas', 'fifa'], team_members: [{ event_id: 'code-canvas', name: 'Searchable Teammate', rrn: 'TEAM-456', mobile: '9000000000', programme: 'B.Tech', year: 'III', department: 'AI&DS', section: 'B' }] }]);
+    render(<AdminPage onBack={() => {}} />);
+    expect(await screen.findByText('Top Technical Competition')).toBeInTheDocument();
+    expect(screen.getByText('Top Non-Technical Competition')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Duplicates' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Registrations Roster/ }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search registrations and teammates' }), { target: { value: 'TEAM-456' } });
+    expect(screen.getByText('#1 Searchable Teammate')).toBeInTheDocument();
+    expect(screen.getByText('Test Participant')).toBeInTheDocument();
+    expect(api.updateRegistration).not.toHaveBeenCalled();
+    expect(api.deleteRegistration).not.toHaveBeenCalled();
+  });
   it('opens all event participants, including teammates, from a dashboard card', async () => {
     vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'admin' });
     const record = (await api.fetchRegistrations())[0]!;
@@ -39,6 +54,7 @@ describe('separate admin portals', () => {
     expect(await screen.findByRole('button', { name: 'Dashboard Overview' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Website CMS & Cards' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Supabase Cloud Config' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Duplicates' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Registrations Roster/ }));
     expect(await screen.findByText('Test Participant')).toBeInTheDocument();
     expect(screen.queryByTitle('Delete entry')).not.toBeInTheDocument();

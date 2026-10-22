@@ -46,6 +46,9 @@ import {
 } from '../lib/supabase';
 import { RegistrationTeamAccess } from '../components/RegistrationTeamAccess';
 import { AcademicCounts } from '../components/AcademicCounts';
+import { RegistrationDuplicates } from '../components/RegistrationDuplicates';
+import { RegistrationEditor, type RegistrationEditRequest } from '../components/RegistrationEditor';
+import { registrationMatchesSearch } from '../lib/registrationDuplicates';
 import { EventParticipantsDialog } from '../components/EventParticipantsDialog';
 import { buildEventRosters, buildRegistrationCsv, downloadCsv } from '../lib/participantExports';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
@@ -105,7 +108,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   const [loggingIn, setLoggingIn] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'counts' | 'editor' | 'database'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'counts' | 'duplicates' | 'editor' | 'database'>('overview');
+  const [registrationEdit, setRegistrationEdit] = useState<RegistrationEditRequest | null>(null);
 
   // Data states
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
@@ -280,39 +284,29 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
       });
     });
 
-    let topEventTitle = 'Awaiting entries';
-    let topEventCount = 0;
-    Object.entries(eventCounts).forEach(([id, cnt]) => {
-      if (cnt > topEventCount) {
-        topEventCount = cnt;
-        topEventTitle = events.find((e) => e.id === id)?.title || id;
-      }
+    const topEvents = (['technical', 'non-technical'] as const).map(category => {
+      const ranked = events.filter(event => event.category === category).sort((a, b) => (eventCounts[b.id] || 0) - (eventCounts[a.id] || 0));
+      const count = eventCounts[ranked[0]?.id || ''] || 0;
+      return { category, count, title: count ? ranked.filter(event => eventCounts[event.id] === count).map(event => event.title).join(' / ') : 'Awaiting entries' };
     });
 
-    return { totalRegs, totalParticipants: participantRRNs.size, eventCounts, deptCounts, yearCounts, topEventTitle, topEventCount };
+    return { totalRegs, totalParticipants: participantRRNs.size, eventCounts, deptCounts, yearCounts, topEvents };
   }, [registrations, events]);
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
     return registrations.filter((r) => {
-      const matchesSearch =
-        !searchQuery ||
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.rrn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.mobile.includes(searchQuery) ||
-        r.reg_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.section && r.section.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        r.selected_events.some((e) => e.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = registrationMatchesSearch(r, searchQuery, Object.fromEntries(events.map(event => [event.id, event.title])));
 
       const matchesEvent =
         selectedEventFilter === 'all' || r.selected_events.includes(selectedEventFilter);
 
       const matchesDept =
-        selectedDeptFilter === 'all' || r.department.toLowerCase() === selectedDeptFilter.toLowerCase();
+        selectedDeptFilter === 'all' || [r.department, ...(r.team_members || []).map(member => member.department)].some(department => department.toLowerCase() === selectedDeptFilter.toLowerCase());
 
       return matchesSearch && matchesEvent && matchesDept;
     });
-  }, [registrations, searchQuery, selectedEventFilter, selectedDeptFilter]);
+  }, [registrations, searchQuery, selectedEventFilter, selectedDeptFilter, events]);
 
   // Passcode login modal
   if (!isAuthenticated) {
@@ -382,12 +376,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col">
+      {!registrationOnly && registrationEdit && <RegistrationEditor request={registrationEdit} events={events} onClose={() => setRegistrationEdit(null)} onSaved={record => {
+        setRegistrations(previous => previous.some(item => item.reg_id === record.reg_id) ? previous.map(item => item.reg_id === record.reg_id ? record : item) : [record, ...previous]);
+        setSaveStatus({ message: `${record.reg_id} saved. Duplicate groups have been recalculated.`, type: 'success' });
+      }} />}
       {!registrationOnly && <AlertDialog open={!!registrationToDelete} onOpenChange={open => { if (!open && !deletingId) { setRegistrationToDelete(null); setDeleteError(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this registration?</AlertDialogTitle>
             <AlertDialogDescription>
               Permanently remove {registrationToDelete?.name} ({registrationToDelete?.reg_id}) and their event/team details from the database? This cannot be undone.
+              {' '}All events on this pass will be removed: {registrationToDelete?.selected_events.map(id => events.find(event => event.id === id)?.title || id).join(', ')}. To preserve the other event, cancel and use “Remove this event only” on the Duplicates page.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError && <p role="alert" className="text-sm text-red-700">{deleteError}</p>}
@@ -491,6 +490,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
             <Users className="w-3.5 h-3.5" /><span>Department & Section Counts</span>
           </button>
           {!registrationOnly && <>
+          <button onClick={() => setActiveTab('duplicates')} className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'duplicates' ? 'text-amber-600 border-b-2 border-amber-600 bg-amber-50/40' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}><Layers className="w-3.5 h-3.5" /><span>Duplicates</span></button>
           <button
             onClick={() => setActiveTab('editor')}
             className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-2 ${
@@ -536,10 +536,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
         {/* TAB 1: DASHBOARD OVERVIEW */}
         {/* ======================================================== */}
         {activeTab === 'counts' && <AcademicCounts registrations={registrations} />}
+        {!registrationOnly && activeTab === 'duplicates' && <RegistrationDuplicates records={registrations} events={events} onEdit={setRegistrationEdit} onDelete={record => { setDeleteError(''); setRegistrationToDelete(record); }} />}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* 4 Clean Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -585,22 +586,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                 <p className="text-xs text-slate-500 mt-1">8 Technical · 8 Non-Technical</p>
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+              {metrics.topEvents.map(top => <div key={top.category} className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Top Competition
+                    {top.category === 'technical' ? 'Top Technical Competition' : 'Top Non-Technical Competition'}
                   </span>
                   <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
                     <Flame className="w-4 h-4" />
                   </div>
                 </div>
-                <p className="text-xl font-bold text-slate-900 tracking-tight truncate">
-                  {metrics.topEventCount > 0 ? metrics.topEventTitle : 'Awaiting entries'}
+                <p className="text-lg font-bold text-slate-900 tracking-tight">
+                  {top.title}
                 </p>
                 <p className="text-xs text-emerald-600 font-medium mt-1">
-                  {metrics.topEventCount > 0 ? `${metrics.topEventCount} sign-ups enrolled` : 'No sign-ups yet'}
+                  {top.count > 0 ? `${top.count} registrations${top.title.includes(' / ') ? ' each (tie)' : ''}` : 'No sign-ups yet'}
                 </p>
-              </div>
+              </div>)}
             </div>
 
             {/* Event Sign-up Heatmap Split by Technical & Non-Technical */}
@@ -817,7 +818,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by student name, RRN, mobile, or event..."
+                    aria-label="Search registrations and teammates"
+                    placeholder="Search registrants or teammates: name, RRN, mobile, pass ID, event..."
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
                   />
                 </div>
@@ -892,7 +894,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                   <tbody className="divide-y divide-slate-100">
                     {filteredRegistrations.length > 0 ? (
                       filteredRegistrations.map((r) => {
-                        const isExpanded = expandedRow === r.reg_id;
+                        const isExpanded = expandedRow === r.reg_id || (!!searchQuery.trim() && r.team_members?.length > 0);
                         return (
                           <React.Fragment key={r.reg_id}>
                             <tr className="hover:bg-slate-50/60 transition-colors">
@@ -953,6 +955,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                                 )}
                               </td>
                               {!registrationOnly && <td className="py-3 px-4 text-right">
+                                <button onClick={() => setRegistrationEdit({ initial: r, original: r })} aria-label={`Edit registration ${r.reg_id}`} className="mr-2 inline-flex items-center gap-1.5 px-3 py-2 text-blue-700 font-semibold border border-blue-200 rounded-lg hover:bg-blue-50">Edit</button>
                                 <button
                                   onClick={() => { setDeleteError(''); setRegistrationToDelete(r); }}
                                   disabled={!!deletingId}

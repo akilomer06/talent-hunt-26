@@ -3,6 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { createAccessStore } from './access.mjs';
 import { validateEventTeams } from '../shared/registrationRules.ts';
+import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnapshot, registrationUpdateFilter } from './registration-admin.mjs';
 
 export function createApiServer(env = process.env, request = fetch) {
   const origins = (env.FRONTEND_URL || 'http://127.0.0.1:3000,http://localhost:3000').split(',').map(s => s.trim());
@@ -143,6 +144,40 @@ export function createApiServer(env = process.env, request = fetch) {
         if (req.method !== 'GET' || !['/api/registrations', '/api/admin/session'].includes(path)) return reply(403, { error: 'This portal has read-only registration access' });
       }
       if (path === '/api/admin/session' && req.method === 'GET') return reply(200, { role: session.role });
+      if (path === '/api/admin/registrations' && req.method === 'POST') {
+        const record = validateAdminRegistration(body);
+        if (typeof body.request_id !== 'string' || !/^[a-f0-9]{32}$/i.test(body.request_id)) return reply(400, { error: 'Invalid creation request. Reopen the registration draft.' });
+        const regId = 'TH26-ADMIN-' + body.request_id.toUpperCase();
+        const findExisting = () => database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
+        const existing = await findExisting();
+        if (existing?.length) return sameRegistrationSnapshot(existing[0], record) ? reply(200, { success: true, data: normalizeRegistration(existing[0]) }) : reply(409, { error: 'This draft was already saved with different details. Refresh registrations before creating another pass.' });
+        const inserted = await database('registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: regId }), headers: { Prefer: 'return=representation' } }).catch(async error => {
+          if (error.code === '23505') return findExisting();
+          if (error.code !== 'PGRST204' || !error.databaseMessage?.includes("'section'")) throw error;
+          const { section, ...legacy } = record;
+          return database('registrations', { method: 'POST', body: JSON.stringify({ ...legacy, reg_id: regId, team_members: { members: record.team_members, registrant_section: section } }), headers: { Prefer: 'return=representation' } });
+        });
+        if (!Array.isArray(inserted) || inserted.length !== 1) return reply(502, { error: 'The database did not confirm the new registration. Refresh before retrying.' });
+        if (!sameRegistrationSnapshot(inserted[0], record)) return reply(409, { error: 'This draft was already saved with different details. Refresh registrations.' });
+        return reply(201, { success: true, data: normalizeRegistration(inserted[0]) });
+      }
+      if (path.startsWith('/api/registrations/') && req.method === 'PUT') {
+        const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
+        if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
+        const record = validateAdminRegistration(body?.record);
+        const found = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
+        if (!found?.length) return reply(404, { error: 'Registration no longer exists. Refresh the list.' });
+        const original = found[0];
+        if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
+        let patch = record;
+        if (!Object.hasOwn(original, 'section')) {
+          const { section, ...legacy } = record;
+          patch = { ...legacy, team_members: { members: record.team_members, registrant_section: section } };
+        }
+        const updated = await database(`registrations?${registrationUpdateFilter(original)}&select=*`, { method: 'PATCH', body: JSON.stringify(patch), headers: { Prefer: 'return=representation' } });
+        if (!Array.isArray(updated) || updated.length !== 1) return reply(409, { error: 'This registration changed during the update. Refresh and review it again.' });
+        return reply(200, { success: true, data: normalizeRegistration(updated[0]) });
+      }
       if (path === '/api/admin/access' && req.method === 'GET') return reply(200, access.status(await access.read()));
       if (path === '/api/admin/access' && req.method === 'PUT') {
         if (body?.enabled) {
@@ -185,7 +220,7 @@ export function createApiServer(env = process.env, request = fetch) {
       return reply(404, { error: 'Endpoint not found' });
     } catch (error) {
       console.error(error);
-      return reply(error.status || 500, { error: 'Unable to complete the request. Please try again.' });
+      return reply(error.status || 500, { error: error.status === 400 ? error.message : 'Unable to complete the request. Please try again.' });
     }
   });
 }
