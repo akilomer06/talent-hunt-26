@@ -16,6 +16,24 @@ beforeEach(() => {
   vi.mocked(api.checkBackendHealth).mockResolvedValue(true);
 });
 describe('separate admin portals', () => {
+  it.each([false, true])('counts participation per event next to unique participants (registration team: %s)', async registrationOnly => {
+    vi.mocked(api.checkAdminSession).mockResolvedValue({ role: registrationOnly ? 'registration' : 'admin' });
+    const record = (await api.fetchRegistrations())[0]!;
+    const team = [{ event_id: 'code-canvas', name: 'Teammate', rrn: '456', mobile: '9000000000', programme: 'B.Tech', year: 'II', department: 'CSE' }];
+    vi.mocked(api.fetchRegistrations).mockResolvedValue([
+      { ...record, selected_events: ['code-canvas', 'fifa'], team_members: team },
+      { ...record, reg_id: 'LEGACY-DUPLICATE', selected_events: ['code-canvas'], team_members: team },
+    ]);
+    render(<AdminPage registrationOnly={registrationOnly} onBack={() => {}} />);
+    const unique = await screen.findByRole('region', { name: 'Total Participants' });
+    const participations = screen.getByRole('region', { name: 'Total Event Participations' });
+    await waitFor(() => expect(within(unique).getByText('2', { exact: true })).toBeInTheDocument());
+    expect(within(participations).getByText('3', { exact: true })).toBeInTheDocument();
+    expect(unique.nextElementSibling).toBe(participations);
+    expect(api.updateRegistration).not.toHaveBeenCalled();
+    expect(api.createAdminRegistration).not.toHaveBeenCalled();
+    expect(api.deleteRegistration).not.toHaveBeenCalled();
+  });
   it('separates category leaders and finds teammates in the registration roster', async () => {
     vi.mocked(api.checkAdminSession).mockResolvedValue({ role: 'admin' });
     const record = (await api.fetchRegistrations())[0]!;

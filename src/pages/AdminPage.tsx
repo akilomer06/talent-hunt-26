@@ -290,8 +290,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
       return { category, count, title: count ? ranked.filter(event => eventCounts[event.id] === count).map(event => event.title).join(' / ') : 'Awaiting entries' };
     });
 
-    return { totalRegs, totalParticipants: participantRRNs.size, eventCounts, deptCounts, yearCounts, topEvents };
-  }, [registrations, events]);
+    const totalEventParticipations = [...participantRosters.events.values()].reduce((total, participants) => total + participants.length, 0);
+    return { totalRegs, totalParticipants: participantRRNs.size, totalEventParticipations, eventCounts, deptCounts, yearCounts, topEvents };
+  }, [registrations, events, participantRosters]);
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
@@ -539,8 +540,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
         {!registrationOnly && activeTab === 'duplicates' && <RegistrationDuplicates records={registrations} events={events} onEdit={setRegistrationEdit} onDelete={record => { setDeleteError(''); setRegistrationToDelete(record); }} />}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* 4 Clean Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {/* Participants and their event participations are separate metrics. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -556,7 +557,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                 <p className="text-xs text-slate-500 mt-1">Confirmed student forms logged</p>
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+              <section aria-label="Total Participants" className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Total Participants
@@ -568,8 +569,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
                 <p className="text-3xl font-bold text-purple-600 tracking-tight">
                   {metrics.totalParticipants}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">Including team & squad members</p>
-              </div>
+                <p className="text-xs text-slate-500 mt-1">Unique students, including teammates</p>
+              </section>
+
+              <section aria-label="Total Event Participations" className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Event Participations</span>
+                  <div className="w-9 h-9 bg-cyan-50 text-cyan-700 rounded-lg flex items-center justify-center"><Layers className="w-4 h-4" /></div>
+                </div>
+                <p className="text-3xl font-bold text-cyan-700 tracking-tight">{metrics.totalEventParticipations}</p>
+                <p className="text-xs text-slate-500 mt-1">One student in two events counts as 2 · includes teammates</p>
+                {participantRosters.unassigned.length > 0 && <p className="text-xs text-amber-700 mt-2">{participantRosters.unassigned.length} teammate event assignments need review.</p>}
+              </section>
 
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
