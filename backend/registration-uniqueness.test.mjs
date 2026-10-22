@@ -27,7 +27,7 @@ test('event uniqueness blocks all registrant/teammate combinations, including si
       assert.match((await response.json()).error, /Vijay Hari.*733 898 5189/);
     }
     assert.equal(writes, 0);
-    assert.equal((await submit(registration('DIFFERENT-EVENT', '001', [], 'fifa'))).status, 201);
+    assert.equal((await submit(registration('DIFFERENT-EVENT', '001', [], 'shutter-verse'))).status, 201);
     const responses = await Promise.all([submit(registration('RACE-1', '009')), submit(registration('RACE-2', '009'))]);
     assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
     assert.equal(rows.filter(r => r.rrn === '009').length, 1);

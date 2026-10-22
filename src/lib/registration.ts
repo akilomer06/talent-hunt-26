@@ -1,5 +1,6 @@
 export const MAX_PER_CATEGORY = 1;
-export { TEAM_RULES, validateEventTeams } from '../../shared/registrationRules';
+import { isEventRegistrationClosed } from '../../shared/registrationRules';
+export { TEAM_RULES, validateEventTeams, isEventRegistrationClosed, closedRegistrationError } from '../../shared/registrationRules';
 
 export type EventCategory = 'technical' | 'non-technical';
 
@@ -10,6 +11,7 @@ export function toggleEventSelection(
   categoryOf: (id: string) => EventCategory | undefined,
 ): { next: string[]; blocked: boolean } {
   if (selected.includes(eventId)) return { next: selected.filter((id) => id !== eventId), blocked: false };
+  if (isEventRegistrationClosed(eventId)) return { next: selected, blocked: true };
   const cat = categoryOf(eventId);
   const count = selected.filter((id) => categoryOf(id) === cat).length;
   if (count >= MAX_PER_CATEGORY) return { next: selected, blocked: true };

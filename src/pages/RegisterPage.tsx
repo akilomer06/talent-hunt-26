@@ -13,6 +13,8 @@ import {
   toggleEventSelection,
   TEAM_RULES,
   validateEventTeams,
+  isEventRegistrationClosed,
+  closedRegistrationError,
   type EventCategory,
 } from '../lib/registration';
 
@@ -151,12 +153,12 @@ const PersonFields: React.FC<{
 export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBack }) => {
   const { events, settings } = useLiveContent();
   const [me, setMe] = useState<Person>(emptyPerson);
-  const [selected, setSelected] = useState<string[]>(initialEventId ? [initialEventId] : []);
+  const [selected, setSelected] = useState<string[]>(initialEventId && !isEventRegistrationClosed(initialEventId) ? [initialEventId] : []);
   const [teams, setTeams] = useState<Record<string, Person[]>>({});
   const hasDetails = (person: Person) => Object.values(person).some(value => value.trim().length > 0);
   const team = selected.flatMap(id => (teams[id] || []).filter(hasDetails).map(person => ({ ...person, event_id: id })));
   const selectedEvents = events.filter(event => selected.includes(event.id));
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() => initialEventId ? closedRegistrationError([initialEventId]) || '' : '');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [regId, setRegId] = useState('');
@@ -168,6 +170,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
   }, []);
 
   const toggle = (id: string) => {
+    const closureError = closedRegistrationError([id]);
+    if (closureError) { setNotice(closureError); return; }
     const { next, blocked } = toggleEventSelection(selected, id, categoryOf);
     const cat = categoryOf(id) === 'technical' ? 'technical' : 'non-technical';
     setNotice(blocked ? `You can pick only ${MAX_PER_CATEGORY} ${cat} events. Remove one to swap.` : '');
@@ -183,6 +187,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
       setNotice('Pick at least one event.');
       return;
     }
+    const closureError = closedRegistrationError(selected);
+    if (closureError) { setNotice(closureError); return; }
     const teamError = validateEventTeams(selected, team, me.rrn);
     if (teamError) { setNotice(teamError); return; }
     setNotice('');
@@ -241,6 +247,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
         </header>
 
         <aside className="reg-support" aria-label="Registration help">
+          <p><strong>Registration closed: Bid Wars and FIFA.</strong> Other events remain open.</p>
           <p>Each RRN can join an event only once, as registrant or teammate. Already included in a team? Do not register again for that event.</p>
           <p>Need help? Contact <a href="tel:+917338985189">Vijay Hari · +91 733 898 5189</a>.</p>
         </aside>
@@ -276,17 +283,20 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
                         <div className="reg-events">
                           {list.map((ev) => {
                             const on = selected.includes(ev.id);
+                            const closed = isEventRegistrationClosed(ev.id);
                             return (
                               <button
                                 type="button"
                                 key={ev.id}
                                 aria-pressed={on}
-                                disabled={!on && full}
+                                disabled={closed || (!on && full)}
+                                aria-label={ev.title}
                                 onClick={() => toggle(ev.id)}
                                 className={`reg-event${on ? ' is-on' : ''}`}
                               >
                                 <span className="reg-tick">{on && <Check className="w-3 h-3" />}</span>
                                 {ev.title}
+                                {closed && <span className="text-xs font-semibold"> · Registration closed</span>}
                               </button>
                             );
                           })}

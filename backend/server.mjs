@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { createAccessStore } from './access.mjs';
-import { validateEventTeams } from '../shared/registrationRules.ts';
+import { validateEventTeams, closedRegistrationError } from '../shared/registrationRules.ts';
 import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnapshot, registrationUpdateFilter } from './registration-admin.mjs';
 import { assertUniqueEventRrns, withRegistrationWrite } from './registration-uniqueness.mjs';
 import { REGISTRATION_HELP } from '../shared/registrationRules.ts';
@@ -118,6 +118,8 @@ export function createApiServer(env = process.env, request = fetch) {
             || !Array.isArray(body.selected_events) || body.selected_events.length < 1 || body.selected_events.length > 2
             || !body.selected_events.every(value => typeof value === 'string' && value.length <= 100)
             || !Array.isArray(body.team_members) || body.team_members.length > 20) return reply(400, { error: 'Invalid registration details' });
+          const closureError = closedRegistrationError(body.selected_events);
+          if (closureError) return reply(409, { error: closureError });
           const teamError = validateEventTeams(body.selected_events, body.team_members, body.rrn);
           if (teamError) return reply(400, { error: teamError });
           const record = Object.fromEntries(fields.map(key => [key, body[key].trim()]));
@@ -158,6 +160,8 @@ export function createApiServer(env = process.env, request = fetch) {
           const findExisting = () => database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
           const existing = await findExisting();
           if (existing?.length) return sameRegistrationSnapshot(existing[0], record) ? reply(200, { success: true, data: normalizeRegistration(existing[0]) }) : reply(409, { error: 'This draft was already saved with different details. Refresh registrations before creating another pass.' });
+          const closureError = closedRegistrationError(record.selected_events);
+          if (closureError) return reply(409, { error: closureError });
           await assertUniqueEventRrns(database, record);
           const inserted = await database('registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: regId }), headers: { Prefer: 'return=representation' } }).catch(async error => {
             if (error.code === '23505') return findExisting();
@@ -179,6 +183,8 @@ export function createApiServer(env = process.env, request = fetch) {
           if (!found?.length) return reply(404, { error: 'Registration no longer exists. Refresh the list.' });
           const original = found[0];
           if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
+          const closureError = closedRegistrationError(record.selected_events, original.selected_events);
+          if (closureError) return reply(409, { error: closureError });
           await assertUniqueEventRrns(database, record, original);
           let patch = record;
           if (!Object.hasOwn(original, 'section')) {

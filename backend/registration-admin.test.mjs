@@ -108,7 +108,7 @@ test('admin edits and creation preserve sections on the legacy schema without mi
     assert.equal(response.status, 200);
     assert.equal((await response.json()).data.section, 'A');
     assert.equal(stored.created_at, source.created_at);
-    const createdResponse = await fetch(base + '/api/admin/registrations', { method: 'POST', headers, body: JSON.stringify({ ...source, rrn: '700', request_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) });
+    const createdResponse = await fetch(base + '/api/admin/registrations', { method: 'POST', headers, body: JSON.stringify({ ...source, rrn: '700', selected_events: ['game-craft'], request_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) });
     assert.equal(createdResponse.status, 201);
     const normalized = (await createdResponse.json()).data;
     assert.equal(normalized.section, 'A');

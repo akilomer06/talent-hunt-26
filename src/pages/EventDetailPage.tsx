@@ -32,6 +32,7 @@ import {
 import { useLiveContent } from '../hooks/useLiveContent';
 import { EVENT_THEMES } from '../data/eventThemes';
 import { Button } from '@/components/ui/button';
+import { isEventRegistrationClosed } from '../lib/registration';
 
 interface EventDetailPageProps {
   eventId: string;
@@ -50,6 +51,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
   const event = events.find((e) => e.id === eventId) || events[0];
   if (!event) return null;
   const isTech = event.category === 'technical';
+  const registrationClosed = isEventRegistrationClosed(event.id);
   const theme = {
     tagline: EVENT_THEMES[event.id]?.tagline || event.shortDesc,
     themeTag: isTech ? 'Technical Arena' : 'Non-Technical Showdown',
@@ -129,11 +131,12 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
             </Button>
 
             <Button variant="festival"
+              disabled={registrationClosed}
               onClick={() => onRegisterEvent(event.id)}
               className="inline-flex items-center gap-1.5 bg-vivid-orange hover:bg-vivid-orange-hover text-on-accent px-4 py-1.5 font-space text-xs font-bold uppercase tracking-wider brutal-border brutal-shadow transition-colors"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Register</span>
+              <span>{registrationClosed ? 'Registration closed' : 'Register'}</span>
             </Button>
           </div>
         </div>
@@ -143,6 +146,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
           <h1>{event.title}</h1>
           {theme.tagline !== event.shortDesc && <p className="detail-tagline">{theme.tagline}</p>}
           <p className="detail-description">{event.shortDesc}</p>
+          {registrationClosed && <p className="text-sm font-semibold text-vivid-orange mt-3">Registration is closed for this event.</p>}
         </header>
 
         {/* 2-Column Responsive Layout: Left Description & Rules, Right Themed Event Card */}
@@ -456,11 +460,12 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
 
               {/* Primary Fast Register CTA Button */}
               <Button variant="festival"
+                disabled={registrationClosed}
                 onClick={() => onRegisterEvent(event.id)}
                 className="w-full flex items-center justify-center gap-2 bg-vivid-orange hover:bg-vivid-orange-hover text-on-accent py-3.5 px-4 font-space text-xs sm:text-sm font-bold uppercase tracking-wider brutal-border brutal-shadow hover:-translate-y-0.5 transition-all mb-3"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Register for {event.title}</span>
+                <span>{registrationClosed ? 'Registration closed' : `Register for ${event.title}`}</span>
               </Button>
 
               {/* Share Button */}

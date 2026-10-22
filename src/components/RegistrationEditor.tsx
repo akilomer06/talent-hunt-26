@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { EventItem } from '../data/eventsData';
 import { createAdminRegistration, updateRegistration, type RegistrationRecord, type TeamMember } from '../lib/supabase';
 import { assignedEvent, FIELD_LABELS, PERSON_FIELDS, withoutRegistrationEvent } from '../lib/registrationDuplicates';
-import { TEAM_RULES, validateEventTeams } from '../../shared/registrationRules';
+import { TEAM_RULES, validateEventTeams, closedRegistrationError, isEventRegistrationClosed } from '../../shared/registrationRules';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { RegistrationDetails } from './RegistrationDetails';
 
@@ -20,6 +20,8 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
   const validate = () => {
     if (!PERSON_FIELDS.filter(f => f !== 'section').every(f => (draft[f] || '').trim())) return 'Complete all registrant fields.';
     if (!/^\d{10}$/.test(draft.mobile.trim())) return 'Enter a 10-digit registrant mobile number.';
+    const closureError = closedRegistrationError(draft.selected_events, request.original?.selected_events || []);
+    if (closureError) return closureError;
     return validateEventTeams(draft.selected_events, draft.team_members, draft.rrn);
   };
   const save = async () => {
@@ -48,7 +50,7 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
     </div> : <form onSubmit={e => { e.preventDefault(); const issue = validate(); setError(issue || ''); if (!issue) setReview(true); }} className="space-y-6">
       <fieldset disabled={busy} className="space-y-5">
         <section><h3 className="font-semibold mb-3">Registrant</h3>{inputs(draft, person => setDraft({ ...draft, ...person }), 'Registrant')}</section>
-        <section><h3 className="font-semibold mb-2">Events</h3><p className="text-xs text-slate-500 mb-3">Choose at most one technical and one non-technical event. Removing an event from this draft removes only its assigned teammates.</p><div className="grid sm:grid-cols-2 gap-2">{allEvents.map(event => <label key={event.id} className="flex items-center gap-2 text-sm rounded-lg border p-2"><input type="checkbox" checked={draft.selected_events.includes(event.id)} onChange={e => setDraft(e.target.checked ? { ...draft, selected_events: [...draft.selected_events, event.id] } : withoutRegistrationEvent(draft, event.id))} />{event.title}<span className="ml-auto text-xs text-slate-500">{TEAM_RULES[event.id]?.category === 'technical' ? 'Technical' : 'Non-technical'}</span></label>)}</div></section>
+        <section><h3 className="font-semibold mb-2">Events</h3><p className="text-xs text-slate-500 mb-3">Choose at most one technical and one non-technical event. Removing an event from this draft removes only its assigned teammates.</p><div className="grid sm:grid-cols-2 gap-2">{allEvents.map(event => <label key={event.id} className="flex items-center gap-2 text-sm rounded-lg border p-2"><input type="checkbox" disabled={isEventRegistrationClosed(event.id) && !request.original?.selected_events.includes(event.id) && !draft.selected_events.includes(event.id)} checked={draft.selected_events.includes(event.id)} onChange={e => setDraft(e.target.checked ? { ...draft, selected_events: [...draft.selected_events, event.id] } : withoutRegistrationEvent(draft, event.id))} />{event.title}{isEventRegistrationClosed(event.id) && <span className="text-xs text-amber-700"> · Registration closed</span>}<span className="ml-auto text-xs text-slate-500">{TEAM_RULES[event.id]?.category === 'technical' ? 'Technical' : 'Non-technical'}</span></label>)}</div></section>
         <section className="space-y-4"><h3 className="font-semibold">Teammates ({draft.team_members.length})</h3>
           {draft.selected_events.map(id => { const rule = TEAM_RULES[id]; return <p key={id} className="text-xs text-slate-600">{titles[id] || id}: {rule ? `${rule.min}–${rule.max} total participants including registrant` : 'Review event rules'}</p>; })}
           {draft.team_members.map((member, index) => <section key={index} className="rounded-lg border border-slate-200 p-3 space-y-3"><div className="flex flex-wrap justify-between gap-2"><h4 className="text-sm font-semibold">Teammate {index + 1}</h4><button type="button" onClick={() => setDraft({ ...draft, team_members: draft.team_members.filter((_, i) => i !== index) })} className="text-xs text-red-700">Remove teammate from draft</button></div>

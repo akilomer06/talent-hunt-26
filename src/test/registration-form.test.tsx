@@ -2,11 +2,28 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { EVENTS } from '../data/eventsData';
 import { RegisterPage } from '../pages/RegisterPage';
+import { EventDetailPage } from '../pages/EventDetailPage';
 
 vi.mock('../hooks/useLiveContent', () => ({ useLiveContent: () => ({ events: EVENTS, settings: {} }) }));
 afterEach(cleanup);
 
 describe('dynamic event team form', () => {
+  it.each(['fifa', 'bid-wars'])('disables closed registration and rejects a preselected %s link', eventId => {
+    render(<RegisterPage initialEventId={eventId} onBack={() => {}} />);
+    expect(screen.getByRole('button', { name: 'FIFA' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Bid Wars' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Shutter Verse' })).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Registration is closed');
+    expect(screen.queryByRole('region', { name: /FIFA team|Bid Wars team/ })).not.toBeInTheDocument();
+  });
+  it.each(['fifa', 'bid-wars'])('disables both registration buttons on the %s detail page', eventId => {
+    const register = vi.fn();
+    render(<EventDetailPage eventId={eventId} onBack={() => {}} onNavigateEvent={() => {}} onRegisterEvent={register} />);
+    const buttons = screen.getAllByRole('button', { name: 'Registration closed' });
+    expect(buttons).toHaveLength(2);
+    buttons.forEach(button => { expect(button).toBeDisabled(); fireEvent.click(button); });
+    expect(register).not.toHaveBeenCalled();
+  });
   it('explains event/RRN uniqueness and provides the registration-help phone link', () => {
     render(<RegisterPage onBack={() => {}} />);
     const help = screen.getByRole('complementary', { name: 'Registration help' });

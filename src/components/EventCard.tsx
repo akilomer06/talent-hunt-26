@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { EventItem } from '../data/eventsData';
+import { isEventRegistrationClosed } from '../lib/registration';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Code2,
@@ -129,7 +130,7 @@ export function EventCard({
 
         <div className="card-copy">
           <div className="card-badges-row">
-            <span className="card-chip">2026 EDITION</span>
+            <span className="card-chip">{isEventRegistrationClosed(event.id) ? 'Registration closed' : '2026 EDITION'}</span>
             <span className="card-chip">
               {event.category === 'technical' ? 'TECH ARENA' : 'OPEN ARENA'}
             </span>

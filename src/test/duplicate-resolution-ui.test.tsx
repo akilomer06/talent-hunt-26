@@ -60,7 +60,7 @@ it('keeps an edited draft open if saving fails and does not report a successful 
 it('creates a corrected pass only after confirmation and uses the same request ID on retry', async () => {
   vi.stubGlobal('crypto', { randomUUID: () => '01234567-89ab-cdef-0123-456789abcdef' });
   const { created_at, ...fields } = source;
-  const draft = { ...fields, reg_id: '' };
+  const draft = { ...fields, reg_id: '', selected_events: ['game-craft'] };
   vi.mocked(api.createAdminRegistration).mockRejectedValueOnce(new Error('Connection interrupted.')).mockResolvedValueOnce({ ...draft, reg_id: 'NEW-PASS' });
   const saved = vi.fn();
   render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={saved} />);

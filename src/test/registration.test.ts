@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { toggleEventSelection, TEAM_RULES, validateEventTeams } from '@/lib/registration';
+import { toggleEventSelection, TEAM_RULES, validateEventTeams, closedRegistrationError } from '@/lib/registration';
 import { EVENTS } from '@/data/eventsData';
 
 const cat = (id: string) => (id.startsWith('t') ? ('technical' as const) : ('non-technical' as const));
 
 describe('event selection limits', () => {
+  it('locks Bid Wars and FIFA for new entries while retaining existing admin selections', () => {
+    for (const id of ['fifa', 'bid-wars']) {
+      expect(toggleEventSelection([], id, () => 'non-technical').blocked).toBe(true);
+      expect(closedRegistrationError([id])).toContain('Registration is closed');
+      expect(closedRegistrationError([id], [id])).toBeNull();
+    }
+    expect(closedRegistrationError(['shutter-verse'])).toBeNull();
+  });
   it('blocks a second technical event', () => {
     const r = toggleEventSelection(['t1'], 't2', cat);
     expect(r.blocked).toBe(true);

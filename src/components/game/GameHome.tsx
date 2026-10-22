@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dia
 import { GameArtwork, ArcadeBackdrop } from './GameArtwork';
 import { GameCursor } from './GameCursor';
 import { InstitutionalBanner } from '../InstitutionalBanner';
+import { isEventRegistrationClosed } from '../../lib/registration';
 import { brochureUrl as posterImg, downloadBrochure } from '../../lib/brochure';
 
 type Mode = 'all' | 'technical' | 'non-technical';
@@ -99,7 +100,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
             return (
               <Button variant="game" key={e.id} className={`gm-card ${e.category === 'technical' ? 'is-tech' : 'is-fun'}`} onPointerMove={event => { if (event.pointerType !== 'mouse' || !window.matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return; const rect = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty('--rx', `${-(event.clientY - rect.top - rect.height / 2) / 35}deg`); event.currentTarget.style.setProperty('--ry', `${(event.clientX - rect.left - rect.width / 2) / 35}deg`); }} onPointerLeave={event => { event.currentTarget.style.setProperty('--rx', '0deg'); event.currentTarget.style.setProperty('--ry', '0deg'); }} aria-label={`View ${e.title} event details`} onClick={() => onOpenEvent(e.id)}>
                 <span className="gm-card-lvl gm-pixel">LVL {e.number}</span>
-                <span className="gm-card-mode">{e.category === 'technical' ? 'TECH' : 'FUN'}</span>
+                <span className="gm-card-mode" aria-label={isEventRegistrationClosed(e.id) ? 'Registration closed' : undefined}>{isEventRegistrationClosed(e.id) ? 'CLOSED' : e.category === 'technical' ? 'TECH' : 'FUN'}</span>
                 <GameArtwork id={e.id} iconName={e.iconName} />
                 <div className="gm-card-copy"><h3 className="gm-card-title">{e.title}</h3>
                 <p className="gm-card-desc">{e.shortDesc}</p>

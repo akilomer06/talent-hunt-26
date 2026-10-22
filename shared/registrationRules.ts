@@ -43,6 +43,13 @@ export const normalizeRrn = (value: string) => value.replace(/\s+/g, '').toUpper
 
 export const REGISTRATION_HELP = 'For help, contact Vijay Hari at +91 733 898 5189.';
 
+export const CLOSED_REGISTRATION_EVENTS: readonly string[] = ['bid-wars', 'fifa'];
+export const isEventRegistrationClosed = (eventId: string) => CLOSED_REGISTRATION_EVENTS.includes(eventId);
+export function closedRegistrationError(selected: string[], existing: string[] = []): string | null {
+  const closed = selected.filter(id => isEventRegistrationClosed(id) && !existing.includes(id));
+  return closed.length ? `Registration is closed for ${closed.map(id => TEAM_RULES[id]?.title || id).join(' and ')}. Please choose another event. ${REGISTRATION_HELP}` : null;
+}
+
 export function validateEventTeams(selected: string[], teammates: EventTeammate[], registrantRrn: string): string | null {
   if (selected.length < 1) return 'Pick at least one event.';
   const categories = new Set<EventCategory>();
