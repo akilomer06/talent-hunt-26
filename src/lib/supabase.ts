@@ -119,6 +119,12 @@ export async function submitRegistration(record: Omit<RegistrationRecord, 'id' |
   return api('/api/registrations', { method: 'POST', body: JSON.stringify(record) });
 }
 
+export interface ParticipationEvent { id: string; title: string; category: string; roles: string[]; uncertain: boolean }
+export async function fetchParticipation(rrns: string[]): Promise<Record<string, ParticipationEvent[]>> {
+  const result = await api<{ participation: Record<string, ParticipationEvent[]> }>('/api/participation', { method: 'POST', body: JSON.stringify({ rrns }) });
+  return result.participation;
+}
+
 export async function fetchRegistrations(portal: AdminPortal = 'admin'): Promise<RegistrationRecord[]> {
   return portalApi('/api/registrations', portal);
 }

@@ -50,6 +50,8 @@ import { RegistrationDuplicates } from '../components/RegistrationDuplicates';
 import { RegistrationEditor, type RegistrationEditRequest } from '../components/RegistrationEditor';
 import { registrationMatchesSearch } from '../lib/registrationDuplicates';
 import { EventParticipantsDialog } from '../components/EventParticipantsDialog';
+import { EventGroups } from '../components/EventGroups';
+import { ExcessParticipants } from '../components/ExcessParticipants';
 import { buildEventRosters, buildRegistrationCsv, downloadCsv } from '../lib/participantExports';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { type EventItem, EVENTS as INITIAL_EVENTS } from '../data/eventsData';
@@ -108,7 +110,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
   const [loggingIn, setLoggingIn] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'counts' | 'duplicates' | 'editor' | 'database'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'roster' | 'counts' | 'duplicates' | 'editor' | 'database' | 'groups' | 'excess'>('overview');
   const [registrationEdit, setRegistrationEdit] = useState<RegistrationEditRequest | null>(null);
 
   // Data states
@@ -379,7 +381,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col">
       {!registrationOnly && registrationEdit && <RegistrationEditor request={registrationEdit} events={events} onClose={() => setRegistrationEdit(null)} onSaved={record => {
         setRegistrations(previous => previous.some(item => item.reg_id === record.reg_id) ? previous.map(item => item.reg_id === record.reg_id ? record : item) : [record, ...previous]);
-        setSaveStatus({ message: `${record.reg_id} saved. Duplicate groups have been recalculated.`, type: 'success' });
+        setSaveStatus({ message: `${record.reg_id} saved. All participant lists, duplicate groups and event groups have been recalculated.`, type: 'success' });
       }} />}
       {!registrationOnly && <AlertDialog open={!!registrationToDelete} onOpenChange={open => { if (!open && !deletingId) { setRegistrationToDelete(null); setDeleteError(''); } }}>
         <AlertDialogContent>
@@ -399,7 +401,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>}
-      {participantEvent && <EventParticipantsDialog key={participantEvent.id} event={participantEvent} participants={participantRosters.events.get(participantEvent.id) || []} unassignedCount={participantRosters.unassigned.length} onClose={() => setParticipantEventId(null)} />}
+      {participantEvent && <EventParticipantsDialog key={participantEvent.id} event={participantEvent} records={registrations} participants={participantRosters.events.get(participantEvent.id) || []} unassignedCount={participantRosters.unassigned.length} onClose={() => setParticipantEventId(null)} />}
       {/* Top Navbar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -490,7 +492,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
           <button onClick={() => setActiveTab('counts')} className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'counts' ? 'text-amber-600 border-b-2 border-amber-600 bg-amber-50/40' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
             <Users className="w-3.5 h-3.5" /><span>Department & Section Counts</span>
           </button>
+          <button onClick={() => setActiveTab('groups')} className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg whitespace-nowrap ${activeTab === 'groups' ? 'text-amber-600 border-b-2 border-amber-600 bg-amber-50/40' : 'text-slate-500 hover:text-slate-900'}`}>Event Groups</button>
           {!registrationOnly && <>
+          <button onClick={() => setActiveTab('excess')} className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg whitespace-nowrap ${activeTab === 'excess' ? 'text-amber-600 border-b-2 border-amber-600 bg-amber-50/40' : 'text-slate-500 hover:text-slate-900'}`}>3+ Events Participants</button>
           <button onClick={() => setActiveTab('duplicates')} className={`py-2.5 px-4 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'duplicates' ? 'text-amber-600 border-b-2 border-amber-600 bg-amber-50/40' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}><Layers className="w-3.5 h-3.5" /><span>Duplicates</span></button>
           <button
             onClick={() => setActiveTab('editor')}
@@ -537,6 +541,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
         {/* TAB 1: DASHBOARD OVERVIEW */}
         {/* ======================================================== */}
         {activeTab === 'counts' && <AcademicCounts registrations={registrations} />}
+        {activeTab === 'groups' && <EventGroups records={registrations} events={events} />}
+        {!registrationOnly && activeTab === 'excess' && <ExcessParticipants records={registrations} events={events} onEdit={setRegistrationEdit} onDelete={record => { setDeleteError(''); setRegistrationToDelete(record); }} />}
         {!registrationOnly && activeTab === 'duplicates' && <RegistrationDuplicates records={registrations} events={events} onEdit={setRegistrationEdit} onDelete={record => { setDeleteError(''); setRegistrationToDelete(record); }} />}
         {activeTab === 'overview' && (
           <div className="space-y-6">

@@ -5,6 +5,7 @@ import { assignedEvent, FIELD_LABELS, PERSON_FIELDS, withoutRegistrationEvent } 
 import { TEAM_RULES, validateEventTeams, closedRegistrationError, isEventRegistrationClosed } from '../../shared/registrationRules';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { RegistrationDetails } from './RegistrationDetails';
+import { sameParticipationShape } from '../../shared/participation';
 
 export const emptyAdminRegistration = (): RegistrationRecord => ({ reg_id: '', name: '', rrn: '', mobile: '', programme: 'B.Tech', year: 'II', department: 'CSE', section: '', selected_events: [], team_members: [] });
 const emptyTeammate = (eventId: string): TeamMember => ({ event_id: eventId, name: '', rrn: '', mobile: '', programme: 'B.Tech', year: 'II', department: 'CSE', section: '' });
@@ -22,7 +23,7 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
     if (!/^\d{10}$/.test(draft.mobile.trim())) return 'Enter a 10-digit registrant mobile number.';
     const closureError = closedRegistrationError(draft.selected_events, request.original?.selected_events || []);
     if (closureError) return closureError;
-    return validateEventTeams(draft.selected_events, draft.team_members, draft.rrn);
+    return request.original && sameParticipationShape(draft, request.original) ? null : validateEventTeams(draft.selected_events, draft.team_members, draft.rrn);
   };
   const save = async () => {
     if (busy) return;

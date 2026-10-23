@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUpRight, Check, CheckCircle2, Download, Plus, X } from 
 import confetti from 'canvas-confetti';
 import { submitRegistration } from '../lib/supabase';
 import { useLiveContent } from '../hooks/useLiveContent';
+import { ParticipationStatus } from '../components/ParticipationStatus';
 import {
   DEPARTMENTS,
   MAX_PER_CATEGORY,
@@ -74,6 +75,7 @@ const PersonFields: React.FC<{
         <span>RRN{req}</span>
         <input required={required} value={value.rrn} onChange={set('rrn')} maxLength={20} inputMode="numeric" />
       </label>
+      <ParticipationStatus rrn={value.rrn} />
       <label className="reg-field">
         <span>Mobile number{req}</span>
         <input

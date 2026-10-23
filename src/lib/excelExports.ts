@@ -2,6 +2,8 @@ import ExcelJS, { type CellValue, type Worksheet } from 'exceljs';
 import type { RegistrationRecord } from './supabase';
 import { buildEventRosters, type EventParticipant } from './participantExports';
 import { normalizeYear } from './academicCounts';
+import type { EventGroup } from './participationViews';
+import type { TeamMember } from './supabase';
 
 type ExportEvent = { id: string; title: string; category?: string; number?: string };
 const navy = 'FF0F172A';
@@ -107,6 +109,37 @@ export function buildEventWorkbook(event: ExportEvent, participants: EventPartic
   const workbook = newWorkbook(now);
   table(workbook, 'Participants', `${event.title} participants`, participantColumns, sortParticipants(participants).map(participantValues), event.category === 'non-technical' ? orange : blue,
     `${participants.length} unique participants. Teammates share the parent registration pass ID.`, 'Total participants');
+  return workbook;
+}
+
+export function buildEventGroupsWorkbook(event: ExportEvent, groups: EventGroup[], unassigned: Array<{ record: RegistrationRecord; member: TeamMember; possibleEvents: string[] }> = [], now = new Date()) {
+  const workbook = newWorkbook(now);
+  const rows: CellValue[][] = groups.flatMap((group, groupIndex) => group.members.map(member => [
+    groupIndex + 1, group.record.reg_id, event.title, member.role, member.person.name, member.person.rrn, member.person.mobile,
+    member.person.programme, member.person.year, member.person.department, member.person.section || '',
+    group.record.name, group.record.rrn, group.record.mobile, group.members.length,
+    dateValue(group.record.created_at ? [group.record.created_at] : []), member.assignment,
+  ]));
+  const { sheet } = table(workbook, 'Event Groups', `${event.title} teams and participants`, [
+    ['Team No.', 11], ['Team / Pass ID', 26], ['Event', 25], ['Role', 28], ['Name', 30], ['RRN', 22], ['Phone', 18],
+    ['Programme', 16], ['Year', 10], ['Department', 20], ['Section', 12], ['Original Registrant', 30], ['Registrant RRN', 22],
+    ['Registrant Phone', 18], ['Team Size', 12], ['Submitted (UTC)', 28], ['Assignment', 54],
+  ], rows, blue, `${groups.length} source teams/groups; ${rows.length} member entries. BGMI fifth-player slot is the substitute. Team blocks retain original member order.`, 'Member entries', 3, 2);
+  let cursor = firstDataRow;
+  groups.forEach((group, index) => {
+    group.members.forEach((_, offset) => {
+      const row = sheet.getRow(cursor + offset);
+      row.eachCell({ includeEmpty: true }, cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: index % 2 ? 'FFEFF6FF' : 'FFFFFFFF' } };
+        if (offset === 0) cell.border = { top: { style: 'medium', color: { argb: blue } } };
+      });
+    });
+    cursor += group.members.length;
+  });
+  if (unassigned.length) table(workbook, 'Needs review', 'Historical teammate assignments needing review', [
+    ['No.', 7], ['Pass ID', 26], ['Name', 30], ['RRN', 22], ['Phone', 18], ['Programme', 16], ['Year', 10], ['Department', 20], ['Section', 12], ['Possible Event IDs', 48],
+  ], unassigned.map((a, i) => [i + 1, a.record.reg_id, a.member.name, a.member.rrn, a.member.mobile, a.member.programme, a.member.year, a.member.department, a.member.section || '', a.possibleEvents.join('\n')]), orange,
+    'Original entries are retained. Their event is uncertain; they are not added to a team by assumption.', 'Unassigned entries');
   return workbook;
 }
 

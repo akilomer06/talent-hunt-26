@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { createAccessStore } from './access.mjs';
 import { validateEventTeams, closedRegistrationError } from '../shared/registrationRules.ts';
 import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnapshot, registrationUpdateFilter } from './registration-admin.mjs';
-import { assertUniqueEventRrns, withRegistrationWrite } from './registration-uniqueness.mjs';
+import { assertUniqueEventRrns, withRegistrationWrite, lookupParticipation } from './registration-uniqueness.mjs';
 import { REGISTRATION_HELP } from '../shared/registrationRules.ts';
 
 export function createApiServer(env = process.env, request = fetch) {
@@ -20,6 +20,7 @@ export function createApiServer(env = process.env, request = fetch) {
     return left.length === right.length && timingSafeEqual(left, right);
   };
   const attempts = new Map();
+  const lookupAttempts = new Map();
   async function database(path, options = {}) {
     const response = await request(`${env.SUPABASE_URL}/rest/v1/${path}`, {
       ...options,
@@ -36,6 +37,7 @@ export function createApiServer(env = process.env, request = fetch) {
       try { problem = JSON.parse(raw); } catch { problem = {}; }
       console.error('Supabase request failed:', response.status, problem.code || 'unknown');
       if (problem.code === 'P0001' && problem.message?.startsWith('TH26_DUPLICATE_EVENT_RRN')) throw Object.assign(new Error(`An RRN is already registered for one of the selected events as registrant or teammate. ${REGISTRATION_HELP}`), { status: 409 });
+      if (problem.code === 'P0001' && problem.message?.startsWith('TH26_EVENT_LIMIT')) throw Object.assign(new Error(`A participant has reached the event limit: maximum two events, one Technical and one Non-Technical, including teammates and substitutes. ${REGISTRATION_HELP}`), { status: 409 });
       throw Object.assign(new Error('Database request failed'), {
         status: 502, code: problem.code, databaseMessage: problem.message,
       });
@@ -111,6 +113,16 @@ export function createApiServer(env = process.env, request = fetch) {
         return reply(200, { token: payload + '.' + sign(payload), role });
       }
       if (path === '/api/content' && req.method === 'GET') return reply(200, await database('site_content?select=*&key=in.(events,settings)'));
+      if (path === '/api/participation' && req.method === 'POST') {
+        if (!Array.isArray(body?.rrns) || body.rrns.length < 1 || body.rrns.length > 21 || !body.rrns.every(rrn => typeof rrn === 'string' && rrn.length <= 200 && rrn.trim())) return reply(400, { error: 'Enter valid RRNs to check participation.' });
+        const now = Date.now();
+        for (const [key, value] of lookupAttempts) if (value.until < now) lookupAttempts.delete(key);
+        const key = req.socket.remoteAddress;
+        const attempt = lookupAttempts.get(key) || { count: 0, until: now + 60000 };
+        if (attempt.count >= 120) { res.setHeader('Retry-After', String(Math.max(1, Math.ceil((attempt.until - now) / 1000)))); return reply(429, { error: 'Too many participation checks. Please wait a minute.' }); }
+        attempt.count++; lookupAttempts.set(key, attempt);
+        return reply(200, { participation: await lookupParticipation(database, body.rrns) });
+      }
       if (path === '/api/registrations' && req.method === 'POST') {
         return await withRegistrationWrite(env.SUPABASE_URL, async () => {
           const fields = ['reg_id', 'name', 'rrn', 'mobile', 'programme', 'year', 'department'];
@@ -178,10 +190,10 @@ export function createApiServer(env = process.env, request = fetch) {
         return await withRegistrationWrite(env.SUPABASE_URL, async () => {
           const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
           if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
-          const record = validateAdminRegistration(body?.record);
           const found = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
           if (!found?.length) return reply(404, { error: 'Registration no longer exists. Refresh the list.' });
           const original = found[0];
+          const record = validateAdminRegistration(body?.record, original);
           if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
           const closureError = closedRegistrationError(record.selected_events, original.selected_events);
           if (closureError) return reply(409, { error: closureError });

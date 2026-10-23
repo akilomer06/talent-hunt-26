@@ -1,5 +1,5 @@
 import type { RegistrationRecord, TeamMember } from './supabase';
-import { TEAM_RULES } from '../../shared/registrationRules';
+import { assignedMembers } from '../../shared/participation';
 
 export interface EventParticipant extends TeamMember {
   passIds: string[];
@@ -33,11 +33,9 @@ export function buildEventRosters(records: RegistrationRecord[]) {
     add(eventId, record, record, 'Registrant', `${record.reg_id}:registrant`);
   }
   for (const record of records) {
-    (record.team_members || []).forEach((member, index) => {
-      const teamEvents = record.selected_events.filter(id => (TEAM_RULES[id]?.max || 1) > 1);
-      const eventId = member.event_id || (teamEvents.length === 1 ? teamEvents[0] : undefined);
+    assignedMembers(record).forEach(({ member, index, eventId, role }) => {
       if (eventId && record.selected_events.includes(eventId)) {
-        add(eventId, member, record, 'Teammate', `${record.reg_id}:teammate:${index}`);
+        add(eventId, member, record, role, `${record.reg_id}:teammate:${index}`);
       } else {
         // Legacy ambiguous teams must not silently receive the wrong certificate.
         unassigned.push({ ...member, passIds: [record.reg_id], registeredBy: [`${record.name} (${record.reg_id})`], roles: ['Teammate — event assignment needs review'], registrationDates: record.created_at ? [record.created_at] : [] });

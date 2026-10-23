@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { FileSpreadsheet, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { buildEventCsv, downloadCsv, type EventParticipant } from '../lib/participantExports';
+import type { RegistrationRecord } from '../lib/supabase';
+import { EventGroups } from './EventGroups';
 
-export function EventParticipantsDialog({ event, participants, unassignedCount, onClose }: {
-  event: { id: string; title: string }; participants: EventParticipant[]; unassignedCount: number; onClose: () => void;
+export function EventParticipantsDialog({ event, participants, records, unassignedCount, onClose }: {
+  event: { id: string; title: string }; participants: EventParticipant[]; records: RegistrationRecord[]; unassignedCount: number; onClose: () => void;
 }) {
+  const [tab, setTab] = useState<'participants' | 'groups'>('participants');
   const [search, setSearch] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
@@ -26,6 +29,8 @@ export function EventParticipantsDialog({ event, participants, unassignedCount, 
       <div className="pr-8"><DialogTitle>{event.title} participants</DialogTitle>
         <DialogDescription className="mt-2 text-slate-600">{participants.length} unique participants, including registrants and teammates. Teammates share their registration’s pass ID. Repeated RRNs count once; all linked pass IDs are listed.</DialogDescription></div>
       {unassignedCount > 0 && <p className="text-sm text-amber-800">{unassignedCount} older teammate records have no clear event assignment. Review the unassigned section in the main CSV before issuing certificates.</p>}
+      <div role="tablist" aria-label="Event Participants views" className="flex gap-2"><button role="tab" aria-selected={tab === 'participants'} onClick={() => setTab('participants')} className={`rounded-lg px-3 py-2 text-sm ${tab === 'participants' ? 'bg-blue-700 text-white' : 'bg-slate-100'}`}>Participants</button><button role="tab" aria-selected={tab === 'groups'} onClick={() => setTab('groups')} className={`rounded-lg px-3 py-2 text-sm ${tab === 'groups' ? 'bg-blue-700 text-white' : 'bg-slate-100'}`}>Event Groups</button></div>
+      {tab === 'groups' ? <div role="tabpanel" className="min-h-0 overflow-y-auto"><EventGroups records={records} events={[event]} fixedEvent={event.id} /></div> : <>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex flex-1 min-w-48 gap-2 items-center border border-slate-300 rounded-lg px-3 py-2"><Search className="w-4 h-4 text-slate-500" /><input aria-label="Search event participants" placeholder="Name, RRN, pass ID or department" className="min-w-0 w-full text-sm bg-white" value={search} onChange={e => setSearch(e.target.value)} /></label>
         <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-blue-700 text-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50" disabled={exporting || !participants.length} onClick={() => void exportExcel()}><FileSpreadsheet className="w-4 h-4" />{exporting ? 'Preparing workbook…' : 'Export participants Excel'}</button>
@@ -42,6 +47,7 @@ export function EventParticipantsDialog({ event, participants, unassignedCount, 
         </table>
       </div>
       <p className="text-sm font-semibold">Total participants: {participants.length}</p>
+      </>}
     </DialogContent>
   </Dialog>;
 }

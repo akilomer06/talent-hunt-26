@@ -1,4 +1,5 @@
--- Optional database-level backstop: run once in the Supabase SQL Editor.
+-- Database-level backstop: run in Talent Hunt's Supabase SQL Editor
+-- (project spowdisyvuvaicasewdf), before deploying multiple API processes.
 -- Installs functions and a trigger only. Does not rewrite or delete registrations.
 -- Existing duplicates remain available for manual review; new overlaps are blocked.
 -- PostgreSQL volatile queries refresh snapshots after the advisory lock:
@@ -6,7 +7,11 @@
 -- https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS
 BEGIN;
 
-CREATE OR REPLACE FUNCTION public.th26_event_rrn_pairs(p_rrn text, p_events jsonb, p_team jsonb)
+CREATE SCHEMA IF NOT EXISTS th26_private;
+REVOKE ALL ON SCHEMA th26_private FROM PUBLIC, anon, authenticated;
+GRANT USAGE ON SCHEMA th26_private TO service_role;
+
+CREATE OR REPLACE FUNCTION th26_private.event_rrn_pairs(p_rrn text, p_events jsonb, p_team jsonb)
 RETURNS TABLE(event_id text, rrn text)
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
   WITH selected AS (
@@ -30,8 +35,8 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
       AND (EXISTS (SELECT 1 FROM team_events t WHERE t.event_id = s.event_id) OR NOT EXISTS (SELECT 1 FROM team_events)));
 $$;
 
-CREATE OR REPLACE FUNCTION public.th26_guard_event_rrn()
-RETURNS trigger LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog AS $$
+CREATE OR REPLACE FUNCTION th26_private.guard_event_rrn()
+RETURNS trigger LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path = pg_catalog AS $$
 DECLARE
   old_rrn text := NULL;
   old_events jsonb := '[]'::jsonb;
@@ -44,35 +49,62 @@ BEGIN
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM public.th26_event_rrn_pairs(NEW.rrn, NEW.selected_events, NEW.team_members) p
+    SELECT 1 FROM th26_private.event_rrn_pairs(NEW.rrn, NEW.selected_events, NEW.team_members) p
     WHERE p.rrn <> '' GROUP BY p.event_id, p.rrn
-    HAVING count(*) > greatest(1, (SELECT count(*) FROM public.th26_event_rrn_pairs(old_rrn, old_events, old_team) previous
+    HAVING count(*) > greatest(1, (SELECT count(*) FROM th26_private.event_rrn_pairs(old_rrn, old_events, old_team) previous
       WHERE previous.event_id = p.event_id AND previous.rrn = p.rrn))
   ) THEN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'TH26_DUPLICATE_EVENT_RRN: repeated RRN inside a registration';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM public.th26_event_rrn_pairs(NEW.rrn, NEW.selected_events, NEW.team_members) incoming
+    SELECT 1 FROM th26_private.event_rrn_pairs(NEW.rrn, NEW.selected_events, NEW.team_members) incoming
     WHERE incoming.rrn <> ''
-      AND NOT EXISTS (SELECT 1 FROM public.th26_event_rrn_pairs(old_rrn, old_events, old_team) previous
+      AND NOT EXISTS (SELECT 1 FROM th26_private.event_rrn_pairs(old_rrn, old_events, old_team) previous
         WHERE previous.event_id = incoming.event_id AND previous.rrn = incoming.rrn)
       AND EXISTS (
         SELECT 1 FROM public.registrations r
-        CROSS JOIN LATERAL public.th26_event_rrn_pairs(r.rrn, r.selected_events, r.team_members) existing
+        CROSS JOIN LATERAL th26_private.event_rrn_pairs(r.rrn, r.selected_events, r.team_members) existing
         WHERE r.id IS DISTINCT FROM NEW.id AND existing.event_id = incoming.event_id AND existing.rrn = incoming.rrn
       )
   ) THEN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'TH26_DUPLICATE_EVENT_RRN: participant already belongs to this event';
   END IF;
+  -- Only newly introduced event/RRN pairs are subject to the new limits.
+  -- Historical participation can still be retained, corrected or reduced.
+  IF EXISTS (
+    WITH incoming AS (
+      SELECT DISTINCT event_id, rrn
+      FROM th26_private.event_rrn_pairs(NEW.rrn, NEW.selected_events, NEW.team_members)
+      WHERE rrn <> ''
+    ), added AS (
+      SELECT * FROM incoming
+      EXCEPT SELECT event_id, rrn FROM th26_private.event_rrn_pairs(old_rrn, old_events, old_team)
+    ), affected AS (SELECT DISTINCT rrn FROM added), associations AS (
+      SELECT p.event_id, p.rrn FROM public.registrations r
+      CROSS JOIN LATERAL th26_private.event_rrn_pairs(r.rrn, r.selected_events, r.team_members) p
+      JOIN affected a ON a.rrn = p.rrn
+      WHERE r.id IS DISTINCT FROM NEW.id
+      UNION SELECT i.event_id, i.rrn FROM incoming i JOIN affected a ON a.rrn = i.rrn
+    )
+    SELECT 1 FROM associations GROUP BY rrn HAVING count(*) > 2
+      OR count(*) FILTER (WHERE event_id IN ('code-break', 'code-canvas', 'neural-nexus', 'binary-battle', 'game-craft', 'tech-talks', 'cyber-breach', 'prompt-pop')) > 1
+      OR count(*) FILTER (WHERE event_id IN ('shutter-verse', 'clue-code', 'trashion', 'the-voice-over', 'bgmi', 'fifa', 'valorant', 'bid-wars')) > 1
+  ) THEN
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'TH26_EVENT_LIMIT: maximum one Technical and one Non-Technical event per RRN';
+  END IF;
   RETURN NEW;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.th26_event_rrn_pairs(text, jsonb, jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.th26_guard_event_rrn() FROM PUBLIC;
+REVOKE ALL ON FUNCTION th26_private.event_rrn_pairs(text, jsonb, jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION th26_private.guard_event_rrn() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION th26_private.event_rrn_pairs(text, jsonb, jsonb), th26_private.guard_event_rrn() TO service_role;
 DROP TRIGGER IF EXISTS th26_event_rrn_unique ON public.registrations;
 CREATE TRIGGER th26_event_rrn_unique
 BEFORE INSERT OR UPDATE OF rrn, selected_events, team_members ON public.registrations
-FOR EACH ROW EXECUTE FUNCTION public.th26_guard_event_rrn();
+FOR EACH ROW EXECUTE FUNCTION th26_private.guard_event_rrn();
+-- Remove obsolete public helpers from earlier installations.
+DROP FUNCTION IF EXISTS public.th26_guard_event_rrn();
+DROP FUNCTION IF EXISTS public.th26_event_rrn_pairs(text, jsonb, jsonb);
 COMMIT;
