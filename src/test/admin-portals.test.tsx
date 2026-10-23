@@ -109,7 +109,7 @@ describe('separate admin portals', () => {
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('Test Participant (TEST)');
     expect(api.deleteRegistration).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }));
-    await waitFor(() => expect(api.deleteRegistration).toHaveBeenCalledWith('TEST'));
+    await waitFor(() => expect(api.deleteRegistration).toHaveBeenCalledWith('TEST', expect.objectContaining({ reg_id: 'TEST' })));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete registration TEST' })).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Delete registration KEEP' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Registrations Roster 1' })).toBeInTheDocument();

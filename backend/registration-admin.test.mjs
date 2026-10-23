@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApiServer } from './server.mjs';
 import { registrationUpdateFilter } from './registration-admin.mjs';
+import { matchesPostgrestFilter } from './postgrest-test-helper.mjs';
 
 const source = { id: 'row-1', reg_id: 'KEEP', created_at: '2026-10-21T00:00:00Z', name: 'Test Person', rrn: '001', mobile: '9000000000', programme: 'B.Tech', year: 'II', department: 'CSE', section: 'A', selected_events: ['game-craft', 'fifa'], team_members: [] };
 
@@ -13,9 +14,9 @@ test('manual admin edits and creation use isolated database mocks and preserve u
     if (options.method === 'PATCH') {
       writes++;
       const params = new URL(url).searchParams;
-      assert.equal(params.get('reg_id'), 'eq."KEEP"');
+      assert.equal(params.get('reg_id'), 'eq.KEEP');
       assert.equal(params.get('selected_events'), 'eq.' + JSON.stringify(rows.get('KEEP').selected_events));
-      if (concurrent) return Response.json([]);
+      if (concurrent || !matchesPostgrestFilter(rows.get('KEEP'), params)) return Response.json([]);
       const patch = JSON.parse(options.body);
       assert.equal(Object.hasOwn(patch, 'id'), false);
       assert.equal(Object.hasOwn(patch, 'created_at'), false);
@@ -72,9 +73,12 @@ test('manual admin edits and creation use isolated database mocks and preserve u
 
 test('update guards escape text and preserve JSONB snapshots', () => {
   const params = new URLSearchParams(registrationUpdateFilter({ ...source, name: 'A "B" & C', section: null }));
-  assert.equal(params.get('name'), 'eq.' + JSON.stringify('A "B" & C'));
+  assert.equal(params.get('name'), 'eq.A "B" & C');
   assert.equal(params.get('section'), 'is.null');
   assert.equal(params.get('team_members'), 'eq.[]');
+  assert.equal(matchesPostgrestFilter({ ...source, name: 'A "B" & C', section: null }, params), true);
+  assert.equal(matchesPostgrestFilter(source, new URLSearchParams('reg_id=eq.%22KEEP%22')), false);
+  assert.equal(matchesPostgrestFilter(source, new URLSearchParams(registrationUpdateFilter({ ...source, name: 'Changed elsewhere' }))), false);
 });
 
 test('admin edits and creation preserve sections on the legacy schema without migrations', async () => {

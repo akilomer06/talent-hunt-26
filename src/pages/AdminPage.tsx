@@ -231,7 +231,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
     setDeletingId(regId);
     setDeleteError('');
     try {
-      await deleteRegistration(regId);
+      await deleteRegistration(regId, registrationToDelete);
       setRegistrations((prev) => prev.filter((r) => r.reg_id !== regId));
       setExpandedRow(current => current === regId ? null : current);
       setRegistrationToDelete(null);

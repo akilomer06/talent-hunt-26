@@ -73,13 +73,15 @@ export function createApiServer(env = process.env, request = fetch) {
     const path = new URL(req.url, 'http://localhost').pathname;
     try {
       let body;
-      if (['POST', 'PUT'].includes(req.method)) {
+      if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
         let raw = '';
         for await (const chunk of req) {
           raw += chunk;
           if (Buffer.byteLength(raw) > 1024 * 1024) return reply(413, { error: 'Request too large' });
         }
-        try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Invalid JSON' }); }
+        if (raw.trim() || req.method !== 'DELETE') {
+          try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Invalid JSON' }); }
+        }
       }
       if (path === '/api/health' && req.method === 'GET') {
         // A real, read-only database query; never return the content or write a row.
@@ -205,6 +207,7 @@ export function createApiServer(env = process.env, request = fetch) {
           }
           const updated = await database(`registrations?${registrationUpdateFilter(original)}&select=*`, { method: 'PATCH', body: JSON.stringify(patch), headers: { Prefer: 'return=representation' } });
           if (!Array.isArray(updated) || updated.length !== 1) return reply(409, { error: 'This registration changed during the update. Refresh and review it again.' });
+          if (!sameRegistrationSnapshot(updated[0], record)) return reply(409, { error: 'The database did not confirm the requested changes. Refresh and review the record before retrying.' });
           return reply(200, { success: true, data: normalizeRegistration(updated[0]) });
         });
       }
@@ -234,13 +237,19 @@ export function createApiServer(env = process.env, request = fetch) {
         }));
       }
       if (path.startsWith('/api/registrations/') && req.method === 'DELETE') {
-        const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
-        if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
-        const removed = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=reg_id`, {
-          method: 'DELETE', headers: { Prefer: 'return=representation' },
+        return await withRegistrationWrite(env.SUPABASE_URL, async () => {
+          const regId = decodeURIComponent(path.slice('/api/registrations/'.length));
+          if (!regId || regId.length > 200) return reply(400, { error: 'Invalid registration ID' });
+          const found = await database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
+          if (!Array.isArray(found) || found.length !== 1) return reply(404, { error: 'Registration no longer exists. Refresh the list.' });
+          const original = found[0];
+          if (body && Object.hasOwn(body, 'expected') && !sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you selected it. Refresh and review the latest details before deleting.' });
+          const removed = await database(`registrations?${registrationUpdateFilter(original)}&select=reg_id`, {
+            method: 'DELETE', headers: { Prefer: 'return=representation' },
+          });
+          if (!Array.isArray(removed) || removed.length !== 1 || removed[0].reg_id !== regId) return reply(409, { error: 'The database did not confirm this deletion. Refresh the list before retrying.' });
+          return reply(200, { success: true, reg_id: regId });
         });
-        if (!Array.isArray(removed) || removed.length === 0) return reply(404, { error: 'Registration was not found or could not be deleted. Refresh the list and try again.' });
-        return reply(200, { success: true, reg_id: regId });
       }
       if (['/api/content/events', '/api/content/settings'].includes(path) && req.method === 'PUT') {
         if ((path.endsWith('/events') && !Array.isArray(body)) || (path.endsWith('/settings') && (!body || Array.isArray(body) || typeof body !== 'object'))) return reply(400, { error: 'Invalid content' });

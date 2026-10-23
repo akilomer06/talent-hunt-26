@@ -34,9 +34,9 @@ test('API enforces origins, authentication, validation and database errors', asy
     const sameCategory = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, selected_events: ['tech-talks', 'code-canvas'] }) });
     assert.equal(sameCategory.status, 400);
     assert.match((await sameCategory.json()).error, /one technical/);
-    const incompleteTeam = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, selected_events: ['code-break'] }) });
+    const incompleteTeam = await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify({ ...record, selected_events: ['code-break'], team_members: [{ name: '', rrn: '456', event_id: 'code-break' }] }) });
     assert.equal(incompleteTeam.status, 400);
-    assert.match((await incompleteTeam.json()).error, /exactly 4/);
+    assert.match((await incompleteTeam.json()).error, /complete all teammate details/);
     assert.equal(calls.length, beforeInvalid);
     assert.equal((await fetch(base + '/api/registrations', { method: 'POST', body: JSON.stringify(record) })).status, 201);
     assert.equal(JSON.parse(calls.at(-1).options.body).id, undefined);

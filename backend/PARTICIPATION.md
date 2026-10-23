@@ -18,9 +18,14 @@ The 3+ list counts distinct event IDs per normalized RRN, including registrant,
 teammate and substitute associations. Different names or phone numbers on source
 records remain visible; the tool does not merge or overwrite them by RRN.
 Actions edit the specific source pass, not every pass sharing that RRN. Removing
-a teammate opens a reviewed draft and retains the other members. Existing team
-size validation still applies. Whole-pass deletion explicitly lists its scope
+a teammate opens a reviewed draft and retains the other members. Teammates are
+optional for every event; only the maximum team size is enforced. Whole-pass deletion explicitly lists its scope
 and requires confirmation; it removes all members/events on that pass.
+
+Edits and deletions use literal text filters and JSON-encoded JSONB filters,
+matching PostgREST's equality semantics. Both compare the original source record
+before writing; a changed record must be reviewed again. The browser removes a
+pass only after the backend confirms deletion of that same pass.
 
 ## New registration checks
 

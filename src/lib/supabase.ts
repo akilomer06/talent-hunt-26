@@ -129,8 +129,9 @@ export async function fetchRegistrations(portal: AdminPortal = 'admin'): Promise
   return portalApi('/api/registrations', portal);
 }
 
-export async function deleteRegistration(regId: string): Promise<boolean> {
-  await api('/api/registrations/' + encodeURIComponent(regId), { method: 'DELETE' });
+export async function deleteRegistration(regId: string, expected?: RegistrationRecord): Promise<boolean> {
+  const result = await portalApi<{ success: boolean; reg_id: string }>('/api/registrations/' + encodeURIComponent(regId), 'admin', { method: 'DELETE', ...(expected ? { body: JSON.stringify({ expected }) } : {}) });
+  if (result.success !== true || result.reg_id !== regId) throw new Error('The database did not confirm this deletion. Refresh the roster before retrying.');
   return true;
 }
 

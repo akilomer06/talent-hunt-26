@@ -7,24 +7,24 @@ export interface TeamRule {
   substitute?: boolean;
 }
 
-// Total participants, including the registrant. Mirrors the official event rules.
+// Total participants including the registrant. Teammates are optional; event maximums still apply.
 export const TEAM_RULES: Record<string, TeamRule> = {
-  'code-break': { title: 'Code Break', category: 'technical', min: 4, max: 4 },
+  'code-break': { title: 'Code Break', category: 'technical', min: 1, max: 4 },
   'code-canvas': { title: 'Code Canvas', category: 'technical', min: 1, max: 2 },
   'neural-nexus': { title: 'Neural Nexus', category: 'technical', min: 1, max: 3 },
-  'binary-battle': { title: 'Binary Battle', category: 'technical', min: 2, max: 3 },
+  'binary-battle': { title: 'Binary Battle', category: 'technical', min: 1, max: 3 },
   'game-craft': { title: 'Game Craft', category: 'technical', min: 1, max: 2 },
   'tech-talks': { title: 'Tech Talks', category: 'technical', min: 1, max: 1 },
   'cyber-breach': { title: 'Cyber Breach', category: 'technical', min: 1, max: 3 },
-  'prompt-pop': { title: 'Prompt Pop', category: 'technical', min: 2, max: 2 },
+  'prompt-pop': { title: 'Prompt Pop', category: 'technical', min: 1, max: 2 },
   'shutter-verse': { title: 'Shutter Verse', category: 'non-technical', min: 1, max: 1 },
-  'clue-code': { title: 'Clue Code', category: 'non-technical', min: 3, max: 3 },
+  'clue-code': { title: 'Clue Code', category: 'non-technical', min: 1, max: 3 },
   trashion: { title: 'Trashion', category: 'non-technical', min: 1, max: 5 },
   'the-voice-over': { title: 'The Voice Over', category: 'non-technical', min: 1, max: 3 },
-  bgmi: { title: 'BGMI Championship', category: 'non-technical', min: 4, max: 5, substitute: true },
+  bgmi: { title: 'BGMI Championship', category: 'non-technical', min: 1, max: 5, substitute: true },
   fifa: { title: 'FIFA', category: 'non-technical', min: 1, max: 1 },
-  valorant: { title: 'Valorant Tournament', category: 'non-technical', min: 5, max: 5 },
-  'bid-wars': { title: 'Bid Wars', category: 'non-technical', min: 2, max: 4 },
+  valorant: { title: 'Valorant Tournament', category: 'non-technical', min: 1, max: 5 },
+  'bid-wars': { title: 'Bid Wars', category: 'non-technical', min: 1, max: 4 },
 };
 
 export interface EventTeammate {
@@ -66,8 +66,8 @@ export function validateEventTeams(selected: string[], teammates: EventTeammate[
     const rule = TEAM_RULES[id]!;
     const members = teammates.filter(member => member.event_id === id);
     const total = 1 + members.length;
-    if (total < rule.min || total > rule.max) {
-      return `${rule.title}: ${rule.min === rule.max ? `exactly ${rule.min}` : `${rule.min}–${rule.max}`} participants required, including you. Add ${rule.min - 1}–${rule.max - 1} teammates.`;
+    if (total > rule.max) {
+      return `${rule.title}: up to ${rule.max} participants allowed, including you (${rule.max - 1} teammates maximum).`;
     }
     const rrns = new Set([normalizeRrn(registrantRrn)]);
     for (const member of members) {

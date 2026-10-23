@@ -40,6 +40,11 @@ export function sameRegistrationSnapshot(row, expected) {
 export function registrationUpdateFilter(row) {
   return ['reg_id', ...registrationFields].filter(key => Object.hasOwn(row, key)).map(key => {
     const value = row[key];
-    return `${key}=${value === null ? 'is.null' : 'eq.' + encodeURIComponent(JSON.stringify(value))}`;
+    // Simple eq filters treat text literally. JSON quoting a text value searches
+    // for the quote characters too, so the UPDATE silently matches no rows.
+    // Only the JSONB columns need JSON serialization; SQL null uses is.null.
+    const json = key === 'selected_events' || key === 'team_members';
+    const literal = json ? JSON.stringify(value) : String(value);
+    return `${key}=${value === null ? 'is.null' : 'eq.' + encodeURIComponent(literal)}`;
   }).join('&');
 }
