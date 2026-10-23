@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import type { EventItem } from '../data/eventsData';
-import { createAdminRegistration, updateRegistration, type RegistrationRecord, type TeamMember } from '../lib/supabase';
+import { createAdminRegistration, updateRegistration, fetchRegistrationExceptions, type RegistrationRecord, type TeamMember } from '../lib/supabase';
 import { assignedEvent, FIELD_LABELS, PERSON_FIELDS, withoutRegistrationEvent } from '../lib/registrationDuplicates';
-import { TEAM_RULES, validateEventTeams, closedRegistrationError, isEventRegistrationClosed } from '../../shared/registrationRules';
+import { TEAM_RULES, validateEventTeams, closedRegistrationError, isEventRegistrationClosed, normalizeRrn } from '../../shared/registrationRules';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { RegistrationDetails } from './RegistrationDetails';
 import { sameParticipationShape } from '../../shared/participation';
@@ -15,13 +15,27 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [exception, setException] = useState<{ rrn: string; events: string[] } | null>(null);
+  const [checkingException, setCheckingException] = useState(false);
+  const exceptionEvents = exception?.rrn === draft.rrn ? exception.events : [];
+  const retainedClosedEvents = request.original && normalizeRrn(draft.rrn) === normalizeRrn(request.original.rrn) ? request.original.selected_events : [];
+  const checkException = async () => {
+    const rrn = draft.rrn;
+    setCheckingException(true); setError('');
+    try {
+      const events = await fetchRegistrationExceptions(rrn);
+      setException({ rrn, events });
+      if (!events.length) setError('No closed-event exception is approved for this RRN.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to check the exception.'); }
+    finally { setCheckingException(false); }
+  };
   const createRequestId = useRef<string | null>(null);
   const titles = Object.fromEntries(events.map(e => [e.id, e.title]));
   const allEvents = [...events.map(e => ({ id: e.id, title: e.title })), ...draft.selected_events.filter(id => !titles[id]).map(id => ({ id, title: id }))];
   const validate = () => {
     if (!PERSON_FIELDS.filter(f => f !== 'section').every(f => (draft[f] || '').trim())) return 'Complete all registrant fields.';
     if (!/^\d{10}$/.test(draft.mobile.trim())) return 'Enter a 10-digit registrant mobile number.';
-    const closureError = closedRegistrationError(draft.selected_events, request.original?.selected_events || []);
+    const closureError = closedRegistrationError(draft.selected_events, [...retainedClosedEvents, ...exceptionEvents]);
     if (closureError) return closureError;
     return request.original && sameParticipationShape(draft, request.original) ? null : validateEventTeams(draft.selected_events, draft.team_members, draft.rrn);
   };
@@ -49,9 +63,25 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
       <section className="rounded-xl border border-blue-200 p-4"><h4 className="font-semibold mb-3">After</h4><RegistrationDetails record={draft} titles={titles} /></section>
       <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={() => setReview(false)} className="rounded-lg border px-4 py-2 text-sm">Back to editing</button><button disabled={busy} onClick={() => void save()} className="rounded-lg bg-blue-700 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">{busy ? 'Saving…' : request.original ? 'Confirm and save changes' : 'Confirm and create registration'}</button></div>
     </div> : <form onSubmit={e => { e.preventDefault(); const issue = validate(); setError(issue || ''); if (!issue) setReview(true); }} className="space-y-6">
-      <fieldset disabled={busy} className="space-y-5">
+      <fieldset disabled={busy || checkingException} className="space-y-5">
         <section><h3 className="font-semibold mb-3">Registrant</h3>{inputs(draft, person => setDraft({ ...draft, ...person }), 'Registrant')}</section>
-        <section><h3 className="font-semibold mb-2">Events</h3><p className="text-xs text-slate-500 mb-3">Choose at most one technical and one non-technical event. Removing an event from this draft removes only its assigned teammates.</p><div className="grid sm:grid-cols-2 gap-2">{allEvents.map(event => <label key={event.id} className="flex items-center gap-2 text-sm rounded-lg border p-2"><input type="checkbox" disabled={isEventRegistrationClosed(event.id) && !request.original?.selected_events.includes(event.id) && !draft.selected_events.includes(event.id)} checked={draft.selected_events.includes(event.id)} onChange={e => setDraft(e.target.checked ? { ...draft, selected_events: [...draft.selected_events, event.id] } : withoutRegistrationEvent(draft, event.id))} />{event.title}{isEventRegistrationClosed(event.id) && <span className="text-xs text-amber-700"> · Registration closed</span>}<span className="ml-auto text-xs text-slate-500">{TEAM_RULES[event.id]?.category === 'technical' ? 'Technical' : 'Non-technical'}</span></label>)}</div></section>
+        <section>
+          <h3 className="font-semibold mb-2">Events</h3>
+          <p className="text-xs text-slate-500 mb-3">Choose at most one technical and one non-technical event. Removing an event from this draft removes only its assigned teammates.</p>
+          <div className="mb-3 space-y-2">
+            <button type="button" disabled={!draft.rrn.trim() || checkingException} onClick={() => void checkException()} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-900 disabled:opacity-50">
+              {checkingException ? 'Checking exception…' : 'Check closed-event exception'}
+            </button>
+            {exceptionEvents.length > 0 && <p role="status" className="text-xs text-amber-900">Admin exception approved for {exceptionEvents.map(id => titles[id] || id).join(', ')} for this RRN. Duplicate and event-limit checks still apply. Public registration remains closed.</p>}
+          </div>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {allEvents.map(event => <label key={event.id} className="flex items-center gap-2 text-sm rounded-lg border p-2">
+              <input type="checkbox" disabled={isEventRegistrationClosed(event.id) && !exceptionEvents.includes(event.id) && !retainedClosedEvents.includes(event.id)} checked={draft.selected_events.includes(event.id)} onChange={e => setDraft(e.target.checked ? { ...draft, selected_events: [...draft.selected_events, event.id] } : withoutRegistrationEvent(draft, event.id))} />
+              {event.title}{isEventRegistrationClosed(event.id) && <span className="text-xs text-amber-700"> · Registration closed</span>}
+              <span className="ml-auto text-xs text-slate-500">{TEAM_RULES[event.id]?.category === 'technical' ? 'Technical' : 'Non-technical'}</span>
+            </label>)}
+          </div>
+        </section>
         <section className="space-y-4"><h3 className="font-semibold">Teammates ({draft.team_members.length})</h3>
           {draft.selected_events.map(id => { const rule = TEAM_RULES[id]; return <p key={id} className="text-xs text-slate-600">{titles[id] || id}: {rule ? `Up to ${rule.max} total participants including registrant; teammates optional` : 'Review event rules'}</p>; })}
           {draft.team_members.map((member, index) => <section key={index} className="rounded-lg border border-slate-200 p-3 space-y-3"><div className="flex flex-wrap justify-between gap-2"><h4 className="text-sm font-semibold">Teammate {index + 1}</h4><button type="button" onClick={() => setDraft({ ...draft, team_members: draft.team_members.filter((_, i) => i !== index) })} className="text-xs text-red-700">Remove teammate from draft</button></div>

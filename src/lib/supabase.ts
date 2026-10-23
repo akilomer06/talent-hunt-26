@@ -145,6 +145,11 @@ export async function createAdminRegistration(record: RegistrationRecord, reques
   return result.data;
 }
 
+export async function fetchRegistrationExceptions(rrn: string): Promise<string[]> {
+  const result = await portalApi<{ events: string[] }>('/api/admin/registration-exceptions', 'admin', { method: 'POST', body: JSON.stringify({ rrn }) });
+  return result.events;
+}
+
 export async function fetchLiveSiteContent(): Promise<{ events: EventItem[]; settings: SiteSettings }> {
   let events = getCachedEvents();
   let settings = getCachedSettings();

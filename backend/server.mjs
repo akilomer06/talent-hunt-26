@@ -6,6 +6,7 @@ import { validateEventTeams, closedRegistrationError } from '../shared/registrat
 import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnapshot, registrationUpdateFilter } from './registration-admin.mjs';
 import { assertUniqueEventRrns, withRegistrationWrite, lookupParticipation } from './registration-uniqueness.mjs';
 import { REGISTRATION_HELP } from '../shared/registrationRules.ts';
+import { approvedClosedEvents, adminClosedRegistrationError } from './registration-exceptions.mjs';
 
 export function createApiServer(env = process.env, request = fetch) {
   const origins = (env.FRONTEND_URL || 'http://127.0.0.1:3000,http://localhost:3000').split(',').map(s => s.trim());
@@ -84,6 +85,7 @@ export function createApiServer(env = process.env, request = fetch) {
         }
       }
       if (path === '/api/health' && req.method === 'GET') {
+        if (env.RENDER_GIT_COMMIT) res.setHeader('X-Deploy-Commit', env.RENDER_GIT_COMMIT);
         // A real, read-only database query; never return the content or write a row.
         await database('site_content?select=key&limit=1', { method: 'GET' });
         return reply(200, { status: 'ok', database: 'connected' });
@@ -166,6 +168,10 @@ export function createApiServer(env = process.env, request = fetch) {
         if (req.method !== 'GET' || !['/api/registrations', '/api/admin/session'].includes(path)) return reply(403, { error: 'This portal has read-only registration access' });
       }
       if (path === '/api/admin/session' && req.method === 'GET') return reply(200, { role: session.role });
+      if (path === '/api/admin/registration-exceptions' && req.method === 'POST') {
+        if (typeof body?.rrn !== 'string' || !body.rrn.trim() || body.rrn.length > 200) return reply(400, { error: 'Enter a valid registrant RRN.' });
+        return reply(200, { events: approvedClosedEvents(body.rrn) });
+      }
       if (path === '/api/admin/registrations' && req.method === 'POST') {
         return await withRegistrationWrite(env.SUPABASE_URL, async () => {
           const record = validateAdminRegistration(body);
@@ -174,7 +180,7 @@ export function createApiServer(env = process.env, request = fetch) {
           const findExisting = () => database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
           const existing = await findExisting();
           if (existing?.length) return sameRegistrationSnapshot(existing[0], record) ? reply(200, { success: true, data: normalizeRegistration(existing[0]) }) : reply(409, { error: 'This draft was already saved with different details. Refresh registrations before creating another pass.' });
-          const closureError = closedRegistrationError(record.selected_events);
+          const closureError = adminClosedRegistrationError(record);
           if (closureError) return reply(409, { error: closureError });
           await assertUniqueEventRrns(database, record);
           const inserted = await database('registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: regId }), headers: { Prefer: 'return=representation' } }).catch(async error => {
@@ -197,7 +203,7 @@ export function createApiServer(env = process.env, request = fetch) {
           const original = found[0];
           const record = validateAdminRegistration(body?.record, original);
           if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
-          const closureError = closedRegistrationError(record.selected_events, original.selected_events);
+          const closureError = adminClosedRegistrationError(record, original);
           if (closureError) return reply(409, { error: closureError });
           await assertUniqueEventRrns(database, record, original);
           let patch = record;
