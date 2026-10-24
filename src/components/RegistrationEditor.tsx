@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { EventItem } from '../data/eventsData';
 import { createAdminRegistration, updateRegistration, type RegistrationRecord, type TeamMember } from '../lib/supabase';
 import { assignedEvent, FIELD_LABELS, PERSON_FIELDS, withoutRegistrationEvent } from '../lib/registrationDuplicates';
-import { TEAM_RULES, validateEventTeams, closedRegistrationError, isEventRegistrationClosed, normalizeRrn, ONLINE_REGISTRATION_CLOSED } from '../../shared/registrationRules';
+import { TEAM_RULES, validateEventTeams, closedRegistrationError, isEventRegistrationClosed, normalizeRrn, REGISTRATION_STATUS_MESSAGE } from '../../shared/registrationRules';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { RegistrationDetails } from './RegistrationDetails';
 import { sameParticipationShape } from '../../shared/participation';
@@ -54,7 +54,7 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
         <section><h3 className="font-semibold mb-3">Registrant</h3>{inputs(draft, person => setDraft({ ...draft, ...person }), 'Registrant')}</section>
         <section>
           <h3 className="font-semibold mb-2">Events</h3>
-          {ONLINE_REGISTRATION_CLOSED && <p className="text-sm text-amber-900 mb-3">Online registration is closed for all events. Existing passes can still be corrected; no new events or participants can be added.</p>}
+          <p className="text-sm text-amber-900 mb-3">{REGISTRATION_STATUS_MESSAGE} Existing passes can still be corrected.</p>
           <p className="text-xs text-slate-500 mb-3">Choose at most one technical and one non-technical event. Removing an event from this draft removes only its assigned teammates.</p>
           <div className="grid sm:grid-cols-2 gap-2">
             {allEvents.map(event => <label key={event.id} className="flex items-center gap-2 text-sm rounded-lg border p-2">
@@ -70,7 +70,7 @@ export function RegistrationEditor({ request, events, onClose, onSaved }: { requ
             <label className="text-xs text-slate-600">Event *<select aria-label={`Teammate ${index + 1} event`} required value={member.event_id || ''} onChange={e => setDraft({ ...draft, team_members: draft.team_members.map((m, i) => i === index ? { ...m, event_id: e.target.value } : m) })} className="block w-full rounded-md border p-2 mt-1"><option value="">Assign event</option>{draft.selected_events.filter(id => (TEAM_RULES[id]?.max || 1) > 1).map(id => <option key={id} value={id}>{titles[id] || id}</option>)}</select></label>
             {inputs(member, person => setDraft({ ...draft, team_members: draft.team_members.map((m, i) => i === index ? person : m) }), `Teammate ${index + 1}`)}
           </section>)}
-          <div className="flex flex-wrap gap-2">{draft.selected_events.filter(id => (TEAM_RULES[id]?.max || 1) > 1).map(id => <button type="button" key={id} disabled={ONLINE_REGISTRATION_CLOSED || 1 + draft.team_members.filter(m => m.event_id === id).length >= TEAM_RULES[id]!.max} onClick={() => setDraft({ ...draft, team_members: [...draft.team_members, emptyTeammate(id)] })} className="rounded-lg border border-blue-200 text-blue-700 px-3 py-2 text-xs disabled:opacity-40">+ Teammate for {titles[id] || id}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{draft.selected_events.filter(id => (TEAM_RULES[id]?.max || 1) > 1).map(id => <button type="button" key={id} disabled={isEventRegistrationClosed(id) || 1 + draft.team_members.filter(m => m.event_id === id).length >= TEAM_RULES[id]!.max} onClick={() => setDraft({ ...draft, team_members: [...draft.team_members, emptyTeammate(id)] })} className="rounded-lg border border-blue-200 text-blue-700 px-3 py-2 text-xs disabled:opacity-40">+ Teammate for {titles[id] || id}</button>)}</div>
         </section>
         <div className="flex gap-3"><button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">Cancel draft</button><button type="submit" className="rounded-lg bg-blue-700 text-white px-4 py-2 text-sm font-semibold">Review changes</button></div>
       </fieldset>

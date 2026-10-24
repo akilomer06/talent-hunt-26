@@ -1,7 +1,7 @@
 import { closedRegistrationError, normalizeRrn } from '../shared/registrationRules.ts';
 import { eventRrnClaims } from '../shared/participation.ts';
 
-// The final all-event closure supersedes the earlier participant exceptions.
+// Closed events remain closed; earlier FIFA exceptions are no longer active.
 export function approvedClosedEvents() {
   return [];
 }

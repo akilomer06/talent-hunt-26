@@ -18,5 +18,5 @@ export const Route = createFileRoute("/register")({
 
 function RegisterRoute() {
   const { event } = Route.useSearch();
-  return <App view="register" eventId={event || "code-break"} />;
+  return <App view="register" eventId={event || "trashion"} />;
 }

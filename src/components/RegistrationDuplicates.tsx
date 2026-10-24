@@ -1,4 +1,4 @@
-import { ONLINE_REGISTRATION_CLOSED } from '../../shared/registrationRules';
+import { ONLINE_REGISTRATION_CLOSED, isEventRegistrationClosed } from '../../shared/registrationRules';
 import { useMemo, useState } from 'react';
 import type { EventItem } from '../data/eventsData';
 import type { RegistrationRecord } from '../lib/supabase';
@@ -32,7 +32,7 @@ export function RegistrationDuplicates({ records, events, onEdit, onDelete }: { 
           {group.comparisons.map(comparison => <section key={`${comparison.from.reg_id}:${comparison.to.reg_id}`} className="rounded-lg border border-slate-200 p-3 space-y-2 text-xs"><h5 className="font-semibold text-slate-900 break-all">{comparison.from.reg_id} → {comparison.to.reg_id}</h5><p className="text-slate-600">Earlier submission: {formatIndiaTime(comparison.from.created_at)} · Later submission: {formatIndiaTime(comparison.to.created_at)}</p><p className="font-semibold text-amber-800">{comparison.tags.join(' · ')}</p><ul className="list-disc pl-5 space-y-1 text-slate-700">{comparison.descriptions.map((description, i) => <li key={i}>{description}</li>)}</ul></section>)}
           {group.records.map(record => <section key={record.reg_id} className="rounded-xl border border-slate-300 p-4 space-y-4"><h5 className="font-bold text-slate-900 break-words">{record.name} · {record.reg_id}</h5><RegistrationDetails record={record} titles={titles} focusEvent={eventId} /><div className="flex flex-wrap gap-2 text-xs font-semibold">
             <button onClick={() => onEdit({ initial: record, original: record })} className="rounded-lg border border-blue-200 text-blue-700 px-3 py-2">Edit registration</button>
-            <button disabled={ONLINE_REGISTRATION_CLOSED} onClick={() => copy(record, eventId)} className="rounded-lg border border-blue-200 text-blue-700 px-3 py-2">Create corrected registration for this event</button>
+            <button disabled={isEventRegistrationClosed(eventId)} onClick={() => copy(record, eventId)} className="rounded-lg border border-blue-200 text-blue-700 px-3 py-2">Create corrected registration for this event</button>
             {record.selected_events.length > 1 && <button onClick={() => onEdit({ initial: withoutRegistrationEvent(record, eventId), original: record, context: `Remove only ${titles[eventId] || eventId}. Review the remaining event and teammates before saving. The pass ID and original submission time are preserved.` })} className="rounded-lg border border-amber-300 text-amber-900 px-3 py-2">Remove this event only</button>}
             <button onClick={() => onDelete(record)} className="rounded-lg border border-red-200 text-red-700 px-3 py-2">Delete whole registration</button>
           </div></section>)}

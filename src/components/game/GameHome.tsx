@@ -61,7 +61,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
           <HudCountdown />
 
           <div className="gm-actions">
-            <Button variant="game" className="gm-btn gm-btn-primary" onClick={onRegister}><Play className="w-4 h-4" /> REGISTRATION INFO</Button>
+            <Button variant="game" className="gm-btn gm-btn-primary" onClick={onRegister}><Play className="w-4 h-4" /> REGISTER TRASHION</Button>
             <Button variant="game" className="gm-btn gm-btn-ghost" onClick={scrollToLevels}><Crosshair className="w-4 h-4" /> SELECT LEVEL</Button>
           </div>
           <Button variant="game" className="gm-brochure-link" onClick={() => setPosterOpen(true)} aria-label="Open official brochure">Official brochure <Zap className="w-4 h-4" /></Button>
@@ -149,7 +149,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
           <p className="gm-chip">⚠ FINAL STAGE</p>
           <h2 className="gm-pixel gm-h2">READY, PLAYER ONE?</h2>
           <p>The arena opens on 26 October 2026. Save your slot now.</p>
-          <Button variant="game" className="gm-btn gm-btn-primary" onClick={onRegister}><Play className="w-4 h-4" /> REGISTRATION INFO</Button>
+          <Button variant="game" className="gm-btn gm-btn-primary" onClick={onRegister}><Play className="w-4 h-4" /> REGISTER TRASHION</Button>
         </div>
       </section>
       </>}

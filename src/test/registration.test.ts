@@ -4,13 +4,17 @@ import { EVENTS } from '@/data/eventsData';
 
 const cat = (id: string) => (id.startsWith('t') ? ('technical' as const) : ('non-technical' as const));
 
-describe('final registration closure', () => {
-  it('locks every event for new entries while retaining existing admin selections', () => {
-    for (const id of Object.keys(TEAM_RULES)) {
+describe('Trashion-only registration', () => {
+  it('locks the other 15 events while retaining existing admin selections', () => {
+    for (const id of Object.keys(TEAM_RULES).filter(id => id !== 'trashion')) {
       expect(toggleEventSelection([], id, () => TEAM_RULES[id]!.category).blocked).toBe(true);
-      expect(closedRegistrationError([id])).toContain('Online registration is closed for all events');
+      expect(closedRegistrationError([id])).toContain('Online registration is closed for this event');
       expect(closedRegistrationError([id], [id])).toBeNull();
     }
+  });
+  it('allows Trashion as the only new online selection', () => {
+    expect(toggleEventSelection([], 'trashion', () => 'non-technical').next).toEqual(['trashion']);
+    expect(closedRegistrationError(['trashion'])).toBeNull();
   });
   it('allows deselection without allowing additional registrations', () => {
     expect(toggleEventSelection(['code-break', 'fifa'], 'code-break', cat).next).toEqual(['fifa']);

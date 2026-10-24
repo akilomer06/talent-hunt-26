@@ -58,6 +58,6 @@ it('blocks new corrected passes after all-event registration closes', () => {
   const draft = { ...source, reg_id: '', selected_events: ['game-craft'] };
   render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Online registration is closed for all events');
+  expect(screen.getByRole('alert')).toHaveTextContent('Online registration is closed for this event');
   expect(api.createAdminRegistration).not.toHaveBeenCalled();
 });

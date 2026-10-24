@@ -35,7 +35,7 @@ export function Hero({ onRegisterClick, onExploreClick }: HeroProps) {
             <p className="stage-tagline">A stage for skills,<br/>ideas & fearless <em>creativity.</em></p>
             <div className="hero-actions">
               <Button variant="festival" size="lg" className="stage-explore" onClick={onExploreClick}>Explore events <ArrowRight /></Button>
-              <Button variant="festivalOutline" size="lg" className="stage-register" onClick={onRegisterClick}>Registration info</Button>
+              <Button variant="festivalOutline" size="lg" className="stage-register" onClick={onRegisterClick}>Register for Trashion</Button>
             </div>
           </div>
           <p className="stage-eligibility" data-hero-enter><ShieldCheck/> Open to CSE and AI&DS students (B.Tech and M.Tech)</p>
