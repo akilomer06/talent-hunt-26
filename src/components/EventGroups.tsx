@@ -12,12 +12,15 @@ export function EventGroups({ records, events, fixedEvent }: { records: Registra
   const labels = [...events, ...[...groups.events.keys()].filter(id => !events.some(e => e.id === id)).map(id => ({ id, title: eventTitle(id) }))];
   const chosen = fixedEvent || selected;
   const query = search.trim().toLowerCase();
-  const exportEvent = async (event: { id: string; title: string }) => {
-    setBusy(event.id); setError('');
+  const exportEvent = async (event: { id: string; title: string }, attendance = false) => {
+    setBusy(`${event.id}:${attendance ? 'attendance' : 'teams'}`); setError('');
     try {
-      const { buildEventGroupsWorkbook, downloadWorkbook } = await import('../lib/excelExports');
-      await downloadWorkbook(buildEventGroupsWorkbook(event, groups.events.get(event.id) || [], groups.unassigned.filter(a => a.possibleEvents.includes(event.id))), `Talent-Hunt-2K26-${event.id}-Teams.xlsx`);
-    } catch { setError('Unable to create the team workbook. Please try again.'); }
+      const { buildEventGroupsWorkbook, buildEventAttendanceWorkbook, downloadWorkbook } = await import('../lib/excelExports');
+      const eventGroups = groups.events.get(event.id) || [];
+      const unassigned = groups.unassigned.filter(a => a.possibleEvents.includes(event.id));
+      const workbook = attendance ? buildEventAttendanceWorkbook(event, eventGroups, unassigned.length) : buildEventGroupsWorkbook(event, eventGroups, unassigned);
+      await downloadWorkbook(workbook, `Talent-Hunt-2K26-${event.id}-${attendance ? 'Attendance-Signatures' : 'Teams'}.xlsx`);
+    } catch { setError('Unable to create the Excel download. Please try again.'); }
     finally { setBusy(''); }
   };
   return <section className="space-y-5 text-slate-900" aria-label="Event Groups">
@@ -30,7 +33,7 @@ export function EventGroups({ records, events, fixedEvent }: { records: Registra
       const all = groups.events.get(event.id) || [];
       const visible = all.filter(group => [group.record.reg_id, ...group.members.flatMap(m => [m.person.name, m.person.rrn, m.person.mobile])].some(v => v.toLowerCase().includes(query)));
       return <section key={event.id} aria-label={`${event.title} groups`} className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
-        <header className="flex flex-wrap justify-between gap-3 items-center"><div><h3 className="font-bold">{event.title}</h3><p className="text-xs text-slate-600">{all.length} groups · {all.reduce((n, g) => n + g.members.length, 0)} member entries</p></div><button disabled={!!busy} onClick={() => void exportEvent(event)} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy === event.id ? 'Preparing…' : `Download ${event.title} Excel`}</button></header>
+        <header className="flex flex-wrap justify-between gap-3 items-center"><div><h3 className="font-bold">{event.title}</h3><p className="text-xs text-slate-600">{all.length} groups · {all.reduce((n, g) => n + g.members.length, 0)} member entries</p></div><div className="space-y-2"><div className="flex flex-wrap gap-2"><button disabled={!!busy} onClick={() => void exportEvent(event)} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy === `${event.id}:teams` ? 'Preparing…' : `Download ${event.title} Excel`}</button><button disabled={!!busy} onClick={() => void exportEvent(event, true)} className="rounded-lg border border-slate-900 bg-white px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50">{busy === `${event.id}:attendance` ? 'Preparing attendance…' : `Download ${event.title} Attendance & Signature Sheet`}</button></div><p className="text-xs text-slate-600">Attendance sheet: black and white, blank signatures and 10 extra rows for on-the-spot registration.</p></div></header>
         {!visible.length && <p className="text-sm text-slate-500">{all.length ? 'No matching teams.' : 'No teams registered yet.'}</p>}
         {visible.map(group => <article key={group.id} className="rounded-lg border border-slate-300 overflow-hidden"><header className="bg-slate-100 px-3 py-3 text-sm space-y-1"><p className="font-semibold break-words">Team / Pass ID: {group.record.reg_id}</p><p>Registered by {group.record.name} · {group.record.rrn} · {group.record.mobile}</p><p className="text-xs text-slate-600">{group.members.length} members · Submitted {formatIndiaTime(group.record.created_at)}</p></header><div className="overflow-x-auto"><table className="w-full text-xs text-left whitespace-nowrap"><thead className="bg-slate-50"><tr>{['Role', 'Name', 'RRN', 'Phone', 'Programme', 'Year', 'Department', 'Section', 'Assignment'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead><tbody>{group.members.map((m, i) => <tr key={i} className="border-t border-slate-200">{[m.role, m.person.name, m.person.rrn, m.person.mobile, m.person.programme, m.person.year, m.person.department, m.person.section || '—', m.assignment].map((v, j) => <td key={j} className="p-3">{v}</td>)}</tr>)}</tbody></table></div></article>)}
       </section>;

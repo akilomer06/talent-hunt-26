@@ -143,6 +143,97 @@ export function buildEventGroupsWorkbook(event: ExportEvent, groups: EventGroup[
   return workbook;
 }
 
+/** Printable team attendance, with individual signatures and space for walk-ins. */
+export function buildEventAttendanceWorkbook(event: ExportEvent, groups: EventGroup[], unassignedCount = 0, now = new Date()) {
+  const workbook = newWorkbook(now);
+  const black = 'FF000000';
+  const columns = [
+    ['Team No.', 7], ['Team / Pass ID', 23], ['Event', 18], ['Role', 17], ['Name', 27], ['RRN', 18],
+    ['Phone', 15], ['Programme', 12], ['Year', 7], ['Department', 16], ['Section', 8], ['Signature', 25],
+  ] as const;
+  const sheet = workbook.addWorksheet('Attendance and Signatures', {
+    properties: { defaultRowHeight: 36 },
+    views: [{ state: 'frozen', ySplit: headerRow, showGridLines: false }],
+    pageSetup: {
+      paperSize: 9, orientation: 'landscape', blackAndWhite: true,
+      fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:5',
+      margins: { left: 0.25, right: 0.25, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.15 },
+    },
+  });
+  sheet.columns = columns.map(([, width]) => ({ width }));
+  const styleRow = (number: number, values: CellValue[], heading = false) => {
+    const row = sheet.getRow(number);
+    row.values = values;
+    row.height = heading ? 30 : 36;
+    for (let column = 1; column <= columns.length; column++) {
+      const cell = row.getCell(column);
+      cell.font = { name: 'Arial', size: 11, bold: heading, color: { argb: black } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: heading || column === 1 ? 'center' : 'left', wrapText: true };
+      cell.numFmt = typeof cell.value === 'number' ? '0' : '@';
+      const edge = { style: 'thin' as const, color: { argb: black } };
+      cell.border = { top: edge, bottom: edge, left: edge, right: edge };
+    }
+    return row;
+  };
+  const note = (number: number, text: string, size = 11, bold = false, height = 22) => {
+    sheet.mergeCells(number, 1, number, columns.length);
+    const cell = sheet.getCell(number, 1);
+    cell.value = text;
+    cell.font = { name: 'Arial', size, bold, color: { argb: black } };
+    cell.alignment = { vertical: 'middle', wrapText: true };
+    sheet.getRow(number).height = height;
+  };
+  sheet.getRow(1).height = 8;
+  note(2, `${event.title} — Attendance & Signature Sheet`, 16, true, 28);
+  const count = groups.reduce((total, group) => total + group.members.length, 0);
+  note(3, `Talent Hunt 2K26 | ${groups.length} teams/groups | ${count} registered member entries`);
+  note(4, unassignedCount
+    ? `${unassignedCount} historical teammate ${unassignedCount === 1 ? 'entry needs' : 'entries need'} event assignment. See the regular Excel download's Needs review sheet.`
+    : 'Team members share a pass ID. Each student signs their own row.');
+  styleRow(headerRow, columns.map(([label]) => label), true);
+  let cursor = firstDataRow;
+  let pageHeight = 0;
+  const bodyHeight = 430;
+  groups.forEach((group, groupIndex) => {
+    if (!group.members.length) return;
+    const heights = group.members.map(member => Math.max(36, ...[
+      [member.role, 17], [member.person.name, 27], [member.person.department, 16],
+    ].map(([text, width]) => Math.ceil(String(text).length / (Number(width) - 2)) * 15 + 8)));
+    // The shared cells need enough combined height for long administrative pass IDs.
+    const sharedHeight = Math.max(
+      Math.ceil(group.record.reg_id.length / 21), Math.ceil(event.title.length / 16),
+    ) * 15 + 8;
+    heights[0] = Math.max(heights[0]!, sharedHeight - heights.slice(1).reduce((sum, height) => sum + height, 0));
+    const groupHeight = heights.reduce((sum, height) => sum + height, 0);
+    if (pageHeight && pageHeight + groupHeight > bodyHeight) {
+      sheet.getRow(cursor - 1).addPageBreak();
+      pageHeight = 0;
+    }
+    const start = cursor;
+    group.members.forEach((member, index) => {
+      const person = member.person;
+      const row = styleRow(cursor++, [
+        index ? null : groupIndex + 1, index ? null : group.record.reg_id, index ? null : event.title,
+        member.role, person.name, person.rrn, person.mobile, person.programme, person.year, person.department, person.section || null, null,
+      ]);
+      row.height = heights[index]!;
+    });
+    if (cursor - start > 1) for (const column of [1, 2, 3]) sheet.mergeCells(start, column, cursor - 1, column);
+    pageHeight += groupHeight;
+  });
+  if (!count) { note(cursor++, 'No online registrations for this event.'); pageHeight += 22; }
+  sheet.getRow(cursor++).height = 12;
+  // Keep the labelled walk-in section and its ten writing rows on the same page.
+  if (pageHeight + 12 + 26 + 30 + 10 * 36 > bodyHeight) sheet.getRow(cursor - 1).addPageBreak();
+  note(cursor++, 'On-the-spot registration — 10 additional participant rows', 12, true, 26);
+  styleRow(cursor++, columns.map(([label]) => label), true);
+  for (let index = 0; index < 10; index++) styleRow(cursor++, Array<CellValue>(columns.length).fill(null));
+  sheet.pageSetup.printArea = `A1:L${cursor - 1}`;
+  sheet.headerFooter.oddFooter = '&LTalent Hunt 2K26&RPage &P of &N';
+  return workbook;
+}
+
 export function buildRegistrationWorkbook(records: RegistrationRecord[], labels: ExportEvent[], now = new Date()) {
   const workbook = newWorkbook(now);
   const rosters = buildEventRosters(records);

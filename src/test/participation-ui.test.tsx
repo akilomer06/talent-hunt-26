@@ -31,6 +31,8 @@ describe('new admin participation views', () => {
     const group = screen.getByRole('region', { name: 'BGMI Championship groups' });
     expect(within(group).getByText('Substitute', { exact: true })).toBeInTheDocument();
     expect(within(group).getByRole('button', { name: 'Download BGMI Championship Excel' })).toBeEnabled();
+    expect(within(group).getByRole('button', { name: 'Download BGMI Championship Attendance & Signature Sheet' })).toBeEnabled();
+    expect(within(group).getByText(/10 extra rows for on-the-spot registration/)).toBeInTheDocument();
     expect(within(group).getByText('Registrant · Main player', { exact: true })).toBeInTheDocument();
     if (!registrationOnly) {
       fireEvent.click(screen.getByRole('button', { name: '3+ Events Participants' }));

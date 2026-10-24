@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
-import { buildRegistrationWorkbook, buildEventWorkbook } from '../lib/excelExports';
+import { buildRegistrationWorkbook, buildEventWorkbook, buildEventAttendanceWorkbook } from '../lib/excelExports';
 import { buildEventRosters } from '../lib/participantExports';
+import { buildEventGroups } from '../lib/participationViews';
 import type { RegistrationRecord } from '../lib/supabase';
 
 const records: RegistrationRecord[] = [{
@@ -11,6 +12,63 @@ const records: RegistrationRecord[] = [{
 const events = [{ id: 'code-canvas', title: 'Code Canvas', category: 'technical', number: '02' }, { id: 'bid-wars', title: 'Bid Wars', category: 'non-technical', number: '08' }, { id: 'fifa', title: 'FIFA', category: 'non-technical', number: '06' }];
 
 describe('organized Excel workbooks', () => {
+  it('saves a monochrome attendance sheet with shared team IDs, individual signatures and exactly ten blank walk-in rows', async () => {
+    const duplicate = { ...records[0]!, reg_id: 'TH26-ADMIN-12345678901234567890123456789012' };
+    const groups = buildEventGroups([...records, duplicate]).events.get('code-canvas')!;
+    const before = JSON.stringify(groups);
+    const workbook = buildEventAttendanceWorkbook(events[0]!, groups, 1);
+    const saved = new ExcelJS.Workbook();
+    await saved.xlsx.load(await workbook.xlsx.writeBuffer());
+    expect(saved.worksheets).toHaveLength(1);
+    const sheet = saved.worksheets[0]!;
+    expect(sheet.columnCount).toBe(12);
+    expect(sheet.getRow(5).values).toEqual([undefined, 'Team No.', 'Team / Pass ID', 'Event', 'Role', 'Name', 'RRN', 'Phone', 'Programme', 'Year', 'Department', 'Section', 'Signature']);
+    expect(sheet.getCell('B7').master.address).toBe('B6');
+    expect(sheet.getCell('C7').master.address).toBe('C6');
+    expect(sheet.getCell('B8').value).toBe(duplicate.reg_id);
+    expect(sheet.getCell('B9').master.address).toBe('B8');
+    expect(sheet.getCell('L7').isMerged).toBe(false);
+    expect(sheet.getCell('F6').value).toBe(records[0]!.rrn);
+    expect(sheet.getCell('G6').value).toBe('0123456789');
+    expect(sheet.getCell('F6').numFmt).toBe('@');
+    expect(sheet.getCell('E7').value).toBe('=Not a formula');
+    expect(sheet.getCell('E7').type).toBe(ExcelJS.ValueType.String);
+    expect(sheet.getCell('A4').text).toContain('1 historical teammate entry needs event assignment');
+    const walkInRow = 11;
+    expect(sheet.getCell(walkInRow, 1).text).toContain('On-the-spot registration');
+    expect(sheet.getCell(walkInRow, 1).text).toContain('10 additional participant rows');
+    expect(sheet.getCell(walkInRow + 1, 12).value).toBe('Signature');
+    expect(sheet.rowCount).toBe(walkInRow + 11);
+    for (let row = walkInRow + 2; row <= sheet.rowCount; row++) {
+      expect(sheet.getRow(row).height).toBeGreaterThanOrEqual(36);
+      for (let col = 1; col <= 12; col++) {
+        expect(sheet.getCell(row, col).value).toBeNull();
+        expect(sheet.getCell(row, col).isMerged).toBe(false);
+        expect(sheet.getCell(row, col).border.bottom?.style).toBe('thin');
+      }
+    }
+    for (let row = 6; row <= 9; row++) expect(sheet.getCell(row, 12).value).toBeNull();
+    sheet.eachRow(row => row.eachCell({ includeEmpty: true }, cell => {
+      if (cell.font.color?.argb) expect(cell.font.color.argb).toBe('FF000000');
+      if (cell.fill.type === 'pattern' && cell.fill.fgColor?.argb) expect(cell.fill.fgColor.argb).toBe('FFFFFFFF');
+      for (const border of Object.values(cell.border)) if (border?.color?.argb) expect(border.color.argb).toBe('FF000000');
+    }));
+    expect(sheet.pageSetup).toMatchObject({ blackAndWhite: true, orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, printArea: 'A1:L22', printTitlesRow: '1:5' });
+    expect(JSON.stringify(groups)).toBe(before);
+  });
+  it('offers ten writable walk-in rows for empty events and retains BGMI substitute roles', () => {
+    const empty = buildEventAttendanceWorkbook(events[2]!, []).worksheets[0]!;
+    expect(empty.getCell('A6').value).toBe('No online registrations for this event.');
+    expect(empty.getCell('A8').text).toContain('On-the-spot registration');
+    expect(empty.rowCount).toBe(19);
+    const bgmi = { ...records[0]!, selected_events: ['bgmi'], section: '', team_members: [1, 2, 3, 4].map(n => ({ ...records[0]!.team_members[0]!, rrn: String(n), event_id: 'bgmi' })) };
+    const groups = buildEventGroups([bgmi]).events.get('bgmi')!;
+    const sheet = buildEventAttendanceWorkbook({ id: 'bgmi', title: 'BGMI Championship' }, groups).worksheets[0]!;
+    expect(sheet.getCell('D10').value).toBe('Substitute');
+    expect(sheet.getCell('B10').master.address).toBe('B6');
+    expect(sheet.getCell('L10').isMerged).toBe(false);
+    expect(sheet.getCell('K6').value).toBeNull();
+  });
   it('writes separate, styled event sheets and preserves text IDs, formulas, dates, filters and panes on reload', async () => {
     const workbook = buildRegistrationWorkbook(records, events, new Date('2026-10-16T09:00:00Z'));
     const bytes = await workbook.xlsx.writeBuffer();
