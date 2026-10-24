@@ -1,6 +1,6 @@
 import { EVENTS as DEFAULT_EVENTS, type EventItem } from '../data/eventsData';
 import { apiRequest as api } from './api';
-import { applyEventVenues } from '../../shared/eventVenues';
+import { applyEventContent } from '../../shared/eventContent';
 
 const TOKEN_KEY = 'th26_admin_token';
 export type AdminPortal = 'admin' | 'registration';
@@ -84,7 +84,7 @@ export function getCachedEvents(): EventItem[] {
     const raw = localStorage.getItem(EVENTS_CACHE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return applyEventVenues(parsed);
+      if (Array.isArray(parsed) && parsed.length > 0) return applyEventContent(parsed);
     }
   } catch {}
   return DEFAULT_EVENTS;
@@ -158,7 +158,7 @@ export async function fetchLiveSiteContent(): Promise<{ events: EventItem[]; set
     const rows = await api<Array<{ key: string; value: unknown }>>('/api/content');
     for (const row of rows) {
       if (row.key === 'events' && Array.isArray(row.value) && row.value.length > 0) {
-        events = applyEventVenues(row.value as EventItem[]);
+        events = applyEventContent(row.value as EventItem[]);
         setCachedEvents(events);
       }
       if (row.key === 'settings' && row.value && typeof row.value === 'object') {

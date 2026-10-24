@@ -7,7 +7,7 @@ import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnaps
 import { assertUniqueEventRrns, withRegistrationWrite, lookupParticipation } from './registration-uniqueness.mjs';
 import { REGISTRATION_HELP } from '../shared/registrationRules.ts';
 import { approvedClosedEvents, adminClosedRegistrationError } from './registration-exceptions.mjs';
-import { applyEventVenues } from '../shared/eventVenues.ts';
+import { applyEventContent } from '../shared/eventContent.ts';
 
 export function createApiServer(env = process.env, request = fetch, { registrationClosure = closedRegistrationError } = {}) {
   const origins = (env.FRONTEND_URL || 'http://127.0.0.1:3000,http://localhost:3000').split(',').map(s => s.trim());
@@ -119,7 +119,7 @@ export function createApiServer(env = process.env, request = fetch, { registrati
       }
       if (path === '/api/content' && req.method === 'GET') {
         const rows = await database('site_content?select=*&key=in.(events,settings)');
-        return reply(200, rows.map(row => row.key === 'events' && Array.isArray(row.value) ? { ...row, value: applyEventVenues(row.value) } : row));
+        return reply(200, rows.map(row => row.key === 'events' && Array.isArray(row.value) ? { ...row, value: applyEventContent(row.value) } : row));
       }
       if (path === '/api/participation' && req.method === 'POST') {
         if (!Array.isArray(body?.rrns) || body.rrns.length < 1 || body.rrns.length > 21 || !body.rrns.every(rrn => typeof rrn === 'string' && rrn.length <= 200 && rrn.trim())) return reply(400, { error: 'Enter valid RRNs to check participation.' });

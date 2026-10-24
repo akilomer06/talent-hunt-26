@@ -1,3 +1,5 @@
+import { TRASHION_RETRO_CONTENT } from '../../shared/eventContent';
+
 export interface JudgingRow {
   criterion: string;
   marks?: number | string;
@@ -435,39 +437,10 @@ export const EVENTS: EventItem[] = [
     number: '03',
     title: 'Trashion',
     category: 'non-technical',
-    shortDesc: 'Bring “MARVEL: REASSEMBLED” to the ramp with original outfits made primarily from recycled, reusable, or discarded materials.',
-    overview: 'Trashion is a sustainable fashion show themed “MARVEL: REASSEMBLED.” Teams of up to five members design and showcase original outfits made primarily from recycled, reusable, or discarded materials, combining creativity, confident presentation, and a sustainability message.',
-    teamSize: 'Up to 5 members per team',
-    duration: 'Maximum 7 minutes per performance',
+    ...TRASHION_RETRO_CONTENT,
     venue: 'Auditorium',
     iconName: 'Shirt',
     accent: 'orange',
-    tags: ['Sustainable Fashion', 'Recycled Art', 'Ramp Walk', 'Eco Design'],
-    specialNotes: [
-      'Theme: “MARVEL: REASSEMBLED.”',
-      'Gender policy: Separate boys’ teams and girls’ teams are allowed. Mixed-gender teams are NOT permitted.',
-    ],
-    rules: [
-      'Each team must consist of at most five members.',
-      'All participants must bring their own essentials and accessories.',
-      'Separate boys’ teams and girls’ teams are allowed. Mixed-gender teams are not permitted.',
-      'All outfits must follow the theme “MARVEL: REASSEMBLED.”',
-      'Participants must primarily use recycled, reusable, or discarded materials and ensure originality.',
-      'Each team has a maximum of seven minutes for the entire performance, including ramp walk, introduction, and presentation.',
-      'Outfits must be decent and appropriate for a college-level event.',
-      'Sharp objects, hazardous waste, flammable materials, toxic substances, and offensive content are strictly prohibited.',
-      'Failure to follow the theme or safety rules may lead to reduced marks or disqualification.',
-      'The judges’ decision is final and binding.',
-      'The organisers reserve the right to modify the schedule, rules, or performance order as required.',
-    ],
-    judgingCriteria: [
-      { criterion: 'Creativity and Innovation' },
-      { criterion: 'Effective Use of Recycled Materials' },
-      { criterion: 'Theme Relevance' },
-      { criterion: 'Complexity of Dress' },
-      { criterion: 'Ramp Walk and Confident Presentation' },
-      { criterion: 'Sustainability Message' },
-    ],
   },
 
   {

@@ -17,7 +17,13 @@ test('public event content serves final venues without writing to the database',
     const rows = await response.json();
     for (const event of rows[0].value) {
       assert.equal(event.venue, EVENT_VENUES[event.id]);
-      assert.equal(event.overview, 'Saved event details');
+      if (event.id === 'trashion') {
+        assert.match(event.overview, /retro-themed fashion show/);
+        assert.ok(event.rules.some(rule => rule.includes('maximum of 5')));
+        assert.ok(event.rules.some(rule => rule.includes('1:00 PM IST')));
+        assert.ok(event.rules.some(rule => rule.includes('valedictory ramp walk')));
+        assert.equal(JSON.stringify(event).includes('MARVEL'), false);
+      } else assert.equal(event.overview, 'Saved event details');
     }
     assert.deepEqual(rows[1].value, { venueName: 'Campus' });
     assert.equal(writes, 0);
