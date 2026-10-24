@@ -43,11 +43,14 @@ export const normalizeRrn = (value: string) => value.replace(/\s+/g, '').toUpper
 
 export const REGISTRATION_HELP = 'For help, contact Vijay Hari at +91 733 898 5189.';
 
-export const CLOSED_REGISTRATION_EVENTS: readonly string[] = ['bid-wars', 'fifa'];
-export const isEventRegistrationClosed = (eventId: string) => CLOSED_REGISTRATION_EVENTS.includes(eventId);
+export const ONLINE_REGISTRATION_CLOSED = true;
+export const ON_SPOT_REGISTRATION_NOTICE = 'On-the-spot registration may be available on campus at the respective event venue, depending on the number of students already registered and the remaining capacity for that event. Please check with the event coordinators. A place is not guaranteed.';
+export const REGISTRATION_CLOSED_MESSAGE = `Online registration is closed for all events. ${ON_SPOT_REGISTRATION_NOTICE}`;
+export const CLOSED_REGISTRATION_EVENTS: readonly string[] = Object.keys(TEAM_RULES);
+export const isEventRegistrationClosed = (eventId: string) => ONLINE_REGISTRATION_CLOSED || CLOSED_REGISTRATION_EVENTS.includes(eventId);
 export function closedRegistrationError(selected: string[], existing: string[] = []): string | null {
   const closed = selected.filter(id => isEventRegistrationClosed(id) && !existing.includes(id));
-  return closed.length ? `Registration is closed for ${closed.map(id => TEAM_RULES[id]?.title || id).join(' and ')}. Please choose another event. ${REGISTRATION_HELP}` : null;
+  return closed.length ? `${REGISTRATION_CLOSED_MESSAGE} ${REGISTRATION_HELP}` : null;
 }
 
 export function validateEventTeams(selected: string[], teammates: EventTeammate[], registrantRrn: string): string | null {

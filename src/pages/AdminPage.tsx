@@ -1,3 +1,4 @@
+import { ONLINE_REGISTRATION_CLOSED } from '../../shared/registrationRules';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
@@ -868,7 +869,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack, registrationOnly =
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {!registrationOnly && <button onClick={() => setRegistrationEdit({ initial: emptyAdminRegistration() })} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white"><Plus className="w-4 h-4" />New registration</button>}
+                {!registrationOnly && !ONLINE_REGISTRATION_CLOSED && <button onClick={() => setRegistrationEdit({ initial: emptyAdminRegistration() })} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white"><Plus className="w-4 h-4" />New registration</button>}
               <button type="button" disabled={exportingExcel || loading || !registrations.length} onClick={() => void handleExportExcel()}
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
                 <FileSpreadsheet className="w-4 h-4" />{exportingExcel ? 'Preparing workbook…' : 'Export Excel workbook'}

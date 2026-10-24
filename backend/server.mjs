@@ -7,8 +7,9 @@ import { normalizeRegistration, validateAdminRegistration, sameRegistrationSnaps
 import { assertUniqueEventRrns, withRegistrationWrite, lookupParticipation } from './registration-uniqueness.mjs';
 import { REGISTRATION_HELP } from '../shared/registrationRules.ts';
 import { approvedClosedEvents, adminClosedRegistrationError } from './registration-exceptions.mjs';
+import { applyEventVenues } from '../shared/eventVenues.ts';
 
-export function createApiServer(env = process.env, request = fetch) {
+export function createApiServer(env = process.env, request = fetch, { registrationClosure = closedRegistrationError } = {}) {
   const origins = (env.FRONTEND_URL || 'http://127.0.0.1:3000,http://localhost:3000').split(',').map(s => s.trim());
   const secret = env.SESSION_SECRET || randomBytes(32).toString('hex');
   if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY || !env.ADMIN_PASSCODE) {
@@ -116,7 +117,10 @@ export function createApiServer(env = process.env, request = fetch) {
         const payload = Buffer.from(JSON.stringify({ role, exp: now + 8 * 60 * 60 * 1000, version })).toString('base64url');
         return reply(200, { token: payload + '.' + sign(payload), role });
       }
-      if (path === '/api/content' && req.method === 'GET') return reply(200, await database('site_content?select=*&key=in.(events,settings)'));
+      if (path === '/api/content' && req.method === 'GET') {
+        const rows = await database('site_content?select=*&key=in.(events,settings)');
+        return reply(200, rows.map(row => row.key === 'events' && Array.isArray(row.value) ? { ...row, value: applyEventVenues(row.value) } : row));
+      }
       if (path === '/api/participation' && req.method === 'POST') {
         if (!Array.isArray(body?.rrns) || body.rrns.length < 1 || body.rrns.length > 21 || !body.rrns.every(rrn => typeof rrn === 'string' && rrn.length <= 200 && rrn.trim())) return reply(400, { error: 'Enter valid RRNs to check participation.' });
         const now = Date.now();
@@ -134,7 +138,7 @@ export function createApiServer(env = process.env, request = fetch) {
             || !Array.isArray(body.selected_events) || body.selected_events.length < 1 || body.selected_events.length > 2
             || !body.selected_events.every(value => typeof value === 'string' && value.length <= 100)
             || !Array.isArray(body.team_members) || body.team_members.length > 20) return reply(400, { error: 'Invalid registration details' });
-          const closureError = closedRegistrationError(body.selected_events);
+          const closureError = registrationClosure(body.selected_events);
           if (closureError) return reply(409, { error: closureError });
           const teamError = validateEventTeams(body.selected_events, body.team_members, body.rrn);
           if (teamError) return reply(400, { error: teamError });
@@ -180,7 +184,7 @@ export function createApiServer(env = process.env, request = fetch) {
           const findExisting = () => database(`registrations?reg_id=eq.${encodeURIComponent(regId)}&select=*&limit=1`);
           const existing = await findExisting();
           if (existing?.length) return sameRegistrationSnapshot(existing[0], record) ? reply(200, { success: true, data: normalizeRegistration(existing[0]) }) : reply(409, { error: 'This draft was already saved with different details. Refresh registrations before creating another pass.' });
-          const closureError = adminClosedRegistrationError(record);
+          const closureError = adminClosedRegistrationError(record, undefined, registrationClosure);
           if (closureError) return reply(409, { error: closureError });
           await assertUniqueEventRrns(database, record);
           const inserted = await database('registrations', { method: 'POST', body: JSON.stringify({ ...record, reg_id: regId }), headers: { Prefer: 'return=representation' } }).catch(async error => {
@@ -203,7 +207,7 @@ export function createApiServer(env = process.env, request = fetch) {
           const original = found[0];
           const record = validateAdminRegistration(body?.record, original);
           if (!sameRegistrationSnapshot(original, body.expected)) return reply(409, { error: 'This registration changed since you opened it. Refresh and review the latest details before saving.' });
-          const closureError = adminClosedRegistrationError(record, original);
+          const closureError = adminClosedRegistrationError(record, original, registrationClosure);
           if (closureError) return reply(409, { error: closureError });
           await assertUniqueEventRrns(database, record, original);
           let patch = record;

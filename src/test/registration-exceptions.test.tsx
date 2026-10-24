@@ -4,50 +4,39 @@ import { RegistrationEditor } from '../components/RegistrationEditor';
 import { EVENTS } from '../data/eventsData';
 import * as api from '../lib/supabase';
 
-vi.mock('../lib/supabase', async original => ({ ...await original<typeof import('../lib/supabase')>(), fetchRegistrationExceptions: vi.fn(), createAdminRegistration: vi.fn() }));
-const draft: api.RegistrationRecord = { reg_id: '', name: 'Test Student', rrn: '240181601070', mobile: '9000000000', programme: 'B.Tech', year: 'III', department: 'Cybersecurity', section: '', selected_events: [], team_members: [] };
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+vi.mock('../lib/supabase', async original => ({ ...await original<typeof import('../lib/supabase')>(), fetchRegistrationExceptions: vi.fn(), createAdminRegistration: vi.fn(), updateRegistration: vi.fn() }));
+const draft: api.RegistrationRecord = { reg_id: '', name: 'Test Student', rrn: '240071603001', mobile: '9000000000', programme: 'B.Tech', year: 'III', department: 'CSE', section: 'A', selected_events: ['fifa'], team_members: [] };
+afterEach(cleanup);
 beforeEach(() => vi.clearAllMocks());
 
-it('unlocks only the approved closed event, requires review and waits for persistence', async () => {
-  vi.stubGlobal('crypto', { randomUUID: () => '01234567-89ab-cdef-0123-456789abcdef' });
-  vi.mocked(api.fetchRegistrationExceptions).mockResolvedValue(['fifa']);
-  vi.mocked(api.createAdminRegistration).mockResolvedValue({ ...draft, reg_id: 'SAVED', selected_events: ['fifa'] });
+it('cannot use a former FIFA exception or create a preselected closed event', () => {
+  render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Check closed-event exception' })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('checkbox')).toHaveLength(16);
+  screen.getAllByRole('checkbox').forEach(checkbox => expect(checkbox).toBeDisabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Online registration is closed for all events');
+  expect(api.createAdminRegistration).not.toHaveBeenCalled();
+  expect(api.fetchRegistrationExceptions).not.toHaveBeenCalled();
+});
+
+it('preserves existing passes while allowing personal-detail corrections', async () => {
+  const original = { ...draft, reg_id: 'KEEP' };
+  vi.mocked(api.updateRegistration).mockResolvedValue({ ...original, name: 'Corrected Student' });
   const saved = vi.fn();
-  render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={saved} />);
-  expect(screen.getByRole('checkbox', { name: /^FIFA/ })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Check closed-event exception' }));
-  expect(await screen.findByRole('status')).toHaveTextContent('Public registration remains closed');
-  expect(api.fetchRegistrationExceptions).toHaveBeenCalledWith(draft.rrn);
-  expect(screen.getByRole('checkbox', { name: /^FIFA/ })).toBeEnabled();
-  expect(screen.getByRole('checkbox', { name: /^Bid Wars/ })).toBeDisabled();
-  fireEvent.click(screen.getByRole('checkbox', { name: /^FIFA/ }));
+  render(<RegistrationEditor request={{ initial: original, original }} events={EVENTS} onClose={vi.fn()} onSaved={saved} />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Registrant Name' }), { target: { value: 'Corrected Student' } });
   fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
-  expect(api.createAdminRegistration).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm and create registration' }));
-  await waitFor(() => expect(saved).toHaveBeenCalledWith(expect.objectContaining({ reg_id: 'SAVED' })));
-  expect(api.createAdminRegistration).toHaveBeenCalledWith(expect.objectContaining({ rrn: draft.rrn, selected_events: ['fifa'], section: '' }), '0123456789abcdef0123456789abcdef');
+  expect(api.updateRegistration).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm and save changes' }));
+  await waitFor(() => expect(saved).toHaveBeenCalledWith(expect.objectContaining({ reg_id: 'KEEP', selected_events: ['fifa'] })));
 });
 
-it('invalidates an exception when the RRN changes and prevents saving the selected closed event', async () => {
-  vi.mocked(api.fetchRegistrationExceptions).mockResolvedValue(['fifa']);
-  render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Check closed-event exception' }));
-  await screen.findByRole('status');
-  fireEvent.click(screen.getByRole('checkbox', { name: /^FIFA/ }));
+it('does not transfer an existing closed-event pass to a different RRN', () => {
+  const original = { ...draft, reg_id: 'KEEP' };
+  render(<RegistrationEditor request={{ initial: original, original }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
   fireEvent.change(screen.getByRole('textbox', { name: 'Registrant RRN' }), { target: { value: 'OTHER' } });
-  expect(screen.getByRole('checkbox', { name: /^FIFA/ })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Registration is closed for FIFA');
-  expect(api.createAdminRegistration).not.toHaveBeenCalled();
-});
-
-it('keeps closed events disabled if approval lookup fails or no exception exists', async () => {
-  vi.mocked(api.fetchRegistrationExceptions).mockRejectedValueOnce(new Error('Sign in again')).mockResolvedValueOnce([]);
-  render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Check closed-event exception' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Sign in again');
-  fireEvent.click(screen.getByRole('button', { name: 'Check closed-event exception' }));
-  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No closed-event exception'));
-  expect(screen.getByRole('checkbox', { name: /^FIFA/ })).toBeDisabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('Online registration is closed for all events');
+  expect(api.updateRegistration).not.toHaveBeenCalled();
 });

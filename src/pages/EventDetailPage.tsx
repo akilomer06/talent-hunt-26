@@ -1,3 +1,4 @@
+import { ON_SPOT_REGISTRATION_NOTICE } from '../../shared/registrationRules';
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
@@ -146,7 +147,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
           <h1>{event.title}</h1>
           {theme.tagline !== event.shortDesc && <p className="detail-tagline">{theme.tagline}</p>}
           <p className="detail-description">{event.shortDesc}</p>
-          {registrationClosed && <p className="text-sm font-semibold text-vivid-orange mt-3">Registration is closed for this event.</p>}
+          {registrationClosed && <p className="text-sm font-semibold text-vivid-orange mt-3">Online registration is closed. {ON_SPOT_REGISTRATION_NOTICE}</p>}
         </header>
 
         {/* 2-Column Responsive Layout: Left Description & Rules, Right Themed Event Card */}

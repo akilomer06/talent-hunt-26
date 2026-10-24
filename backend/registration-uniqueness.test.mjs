@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApiServer } from './server.mjs';
+import { createOpenRegistrationTestServer as createApiServer } from './open-registration-test-helper.mjs';
 import { assertUniqueEventRrns, eventRrnClaims } from './registration-uniqueness.mjs';
 
 const person = rrn => ({ name: 'Test', rrn, mobile: '9000000000', programme: 'B.Tech', year: 'II', department: 'CSE' });

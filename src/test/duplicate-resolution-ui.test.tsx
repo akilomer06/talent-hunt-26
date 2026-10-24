@@ -24,10 +24,7 @@ it('opens every team detail, explains exact duplicate teams, and only creates lo
   expect(edit.mock.calls[0]![0].initial.selected_events).toEqual(['fifa']);
   expect(edit.mock.calls[0]![0].initial.team_members).toEqual([]);
   expect(edit.mock.calls[0]![0].original).toEqual(source);
-  fireEvent.click(screen.getAllByRole('button', { name: 'Create corrected registration for this event' })[0]!);
-  expect(edit.mock.calls[1]![0].initial.selected_events).toEqual(['game-craft']);
-  expect(edit.mock.calls[1]![0].initial.reg_id).toBe('');
-  expect(edit.mock.calls[1]![0].initial.team_members[0].name).toBe('Sample Teammate');
+  screen.getAllByRole('button', { name: 'Create corrected registration for this event' }).forEach(button => expect(button).toBeDisabled());
   expect(remove).not.toHaveBeenCalled();
   expect(api.updateRegistration).not.toHaveBeenCalled();
 });
@@ -57,21 +54,10 @@ it('keeps an edited draft open if saving fails and does not report a successful 
   expect(saved).not.toHaveBeenCalled();
 });
 
-it('creates a corrected pass only after confirmation and uses the same request ID on retry', async () => {
-  vi.stubGlobal('crypto', { randomUUID: () => '01234567-89ab-cdef-0123-456789abcdef' });
-  const { created_at, ...fields } = source;
-  const draft = { ...fields, reg_id: '', selected_events: ['game-craft'] };
-  vi.mocked(api.createAdminRegistration).mockRejectedValueOnce(new Error('Connection interrupted.')).mockResolvedValueOnce({ ...draft, reg_id: 'NEW-PASS' });
-  const saved = vi.fn();
-  render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={saved} />);
+it('blocks new corrected passes after all-event registration closes', () => {
+  const draft = { ...source, reg_id: '', selected_events: ['game-craft'] };
+  render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Online registration is closed for all events');
   expect(api.createAdminRegistration).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm and create registration' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Connection interrupted.');
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm and create registration' }));
-  await waitFor(() => expect(saved).toHaveBeenCalled());
-  expect(api.createAdminRegistration).toHaveBeenCalledTimes(2);
-  expect(vi.mocked(api.createAdminRegistration).mock.calls.map(call => call[1])).toEqual(['0123456789abcdef0123456789abcdef', '0123456789abcdef0123456789abcdef']);
-  expect(api.updateRegistration).not.toHaveBeenCalled();
-  expect(api.deleteRegistration).not.toHaveBeenCalled();
 });

@@ -1,3 +1,4 @@
+import { EventVenueDirectory } from './EventVenueDirectory';
 import { Button } from './ui/button';
 import React, { useState } from 'react';
 import { Calendar, MapPin, Clock, Navigation, Download, Check, ExternalLink } from 'lucide-react';
@@ -51,12 +52,12 @@ export const VenueSection: React.FC = () => {
             </div>
 
             <h2 className="font-display font-black text-3xl sm:text-4xl md:text-5xl text-ink tracking-tight leading-tight">
-              Main Auditorium,
+              Event venues,
               <span className="text-electric-blue block">Crescent Campus.</span>
             </h2>
 
             <p className="font-sans text-sm sm:text-base text-ink-muted font-medium leading-relaxed">
-              All 16 competitions, inaugurations, coding arenas, ramp walks, and awards take place inside the university auditorium and computer science labs in Vandalur, Chennai.
+              The 16 events take place across campus lecture halls, laboratories and the Auditorium. Find your event’s assigned venue below.
             </p>
 
             {/* Embedded Interactive Google Map */}
@@ -153,7 +154,7 @@ export const VenueSection: React.FC = () => {
                   <div>
                     <span className="font-space text-[10px] font-bold text-ink-muted uppercase">Exact Location</span>
                     <h4 className="font-display font-bold text-lg text-ink">
-                      Main University Auditorium
+                      Event-specific campus venues
                     </h4>
                     <p className="font-sans text-xs text-ink-muted mt-0.5 leading-relaxed">
                       B.S. Abdur Rahman Crescent Institute of Science and Technology, GST Road, Vandalur, Chennai 600048.
@@ -170,6 +171,7 @@ export const VenueSection: React.FC = () => {
             </div>
           </div>
         </div>
+        <div className="mt-12"><EventVenueDirectory /></div>
       </div>
     </section>
   );

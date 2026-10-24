@@ -37,14 +37,14 @@ export function Header({ theme = 'paper', onToggleTheme }: HeaderProps) {
       </nav>
       <div className="site-header-actions">
         <Button variant="festivalGhost" size="icon" onClick={onToggleTheme} aria-label={`Switch theme (now ${theme}, next ${next})`} title={`Switch to ${next} theme`}><ThemeIcon/></Button>
-        {!onRegister && <Button asChild variant="festival" className="header-register"><Link to="/register">Register now <ArrowUpRight/></Link></Button>}
+        {!onRegister && <Button asChild variant="festival" className="header-register"><Link to="/register">Registration closed <ArrowUpRight/></Link></Button>}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild><Button variant="festivalGhost" className="header-menu" aria-label="Open menu"><span>Menu</span><Menu/></Button></SheetTrigger>
           <SheetContent className="navigation-sheet">
             <p className="section-kicker">Talent Hunt 2K26</p>
             <SheetTitle className="navigation-title">Find your moment</SheetTitle>
             <SheetDescription className="navigation-description">Code. Create. Compete.</SheetDescription>
-            <nav aria-label="Expanded navigation">{menu.map((item,index)=><Link key={item.to} to={item.to} onClick={()=>setOpen(false)} activeOptions={{exact:true}} activeProps={{className:'is-active'}}><span className="menu-index">{String(index+1).padStart(2,'0')}</span><span>{item.label}</span><ArrowUpRight/></Link>)}<Link to="/register" onClick={()=>setOpen(false)}><span className="menu-index">10</span><span>Register</span><ArrowUpRight/></Link></nav>
+            <nav aria-label="Expanded navigation">{menu.map((item,index)=><Link key={item.to} to={item.to} onClick={()=>setOpen(false)} activeOptions={{exact:true}} activeProps={{className:'is-active'}}><span className="menu-index">{String(index+1).padStart(2,'0')}</span><span>{item.label}</span><ArrowUpRight/></Link>)}<Link to="/register" onClick={()=>setOpen(false)}><span className="menu-index">10</span><span>Registration info</span><ArrowUpRight/></Link></nav>
             <p className="navigation-eligibility">Open to CSE and AI&amp;DS students (B.Tech and M.Tech)</p>
           </SheetContent>
         </Sheet>

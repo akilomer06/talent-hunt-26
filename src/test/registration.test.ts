@@ -4,26 +4,17 @@ import { EVENTS } from '@/data/eventsData';
 
 const cat = (id: string) => (id.startsWith('t') ? ('technical' as const) : ('non-technical' as const));
 
-describe('event selection limits', () => {
-  it('locks Bid Wars and FIFA for new entries while retaining existing admin selections', () => {
-    for (const id of ['fifa', 'bid-wars']) {
-      expect(toggleEventSelection([], id, () => 'non-technical').blocked).toBe(true);
-      expect(closedRegistrationError([id])).toContain('Registration is closed');
+describe('final registration closure', () => {
+  it('locks every event for new entries while retaining existing admin selections', () => {
+    for (const id of Object.keys(TEAM_RULES)) {
+      expect(toggleEventSelection([], id, () => TEAM_RULES[id]!.category).blocked).toBe(true);
+      expect(closedRegistrationError([id])).toContain('Online registration is closed for all events');
       expect(closedRegistrationError([id], [id])).toBeNull();
     }
-    expect(closedRegistrationError(['shutter-verse'])).toBeNull();
   });
-  it('blocks a second technical event', () => {
-    const r = toggleEventSelection(['t1'], 't2', cat);
-    expect(r.blocked).toBe(true);
-    expect(r.next).toEqual(['t1']);
-  });
-  it('blocks a second non-technical event', () => {
-    expect(toggleEventSelection(['n1', 't1'], 'n2', cat).blocked).toBe(true);
-  });
-  it('allows one of each category and deselection', () => {
-    expect(toggleEventSelection(['t1'], 'n1', cat).next).toEqual(['t1', 'n1']);
-    expect(toggleEventSelection(['t1', 'n1'], 't1', cat).next).toEqual(['n1']);
+  it('allows deselection without allowing additional registrations', () => {
+    expect(toggleEventSelection(['code-break', 'fifa'], 'code-break', cat).next).toEqual(['fifa']);
+    expect(toggleEventSelection(['code-break'], 'shutter-verse', cat).blocked).toBe(true);
   });
 });
 

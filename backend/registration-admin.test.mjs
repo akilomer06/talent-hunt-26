@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApiServer } from './server.mjs';
+import { createOpenRegistrationTestServer as createApiServer } from './open-registration-test-helper.mjs';
 import { registrationUpdateFilter } from './registration-admin.mjs';
 import { matchesPostgrestFilter } from './postgrest-test-helper.mjs';
 

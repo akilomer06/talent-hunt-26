@@ -1,15 +1,23 @@
 import { closedRegistrationError, normalizeRrn } from '../shared/registrationRules.ts';
+import { eventRrnClaims } from '../shared/participation.ts';
 
-// Main-admin exceptions for the approved participants only. Never applied publicly.
-const fifaExceptionRrns = new Set(['240181601070', '240071603001']);
-
-export function approvedClosedEvents(rrn) {
-  return typeof rrn === 'string' && fifaExceptionRrns.has(normalizeRrn(rrn)) ? ['fifa'] : [];
+// The final all-event closure supersedes the earlier participant exceptions.
+export function approvedClosedEvents() {
+  return [];
 }
 
-export function adminClosedRegistrationError(record, original) {
+export function adminClosedRegistrationError(record, original, registrationClosure = closedRegistrationError) {
   const retained = original && normalizeRrn(record.rrn) === normalizeRrn(original.rrn) ? original.selected_events : [];
-  return closedRegistrationError(record.selected_events, [
+  const eventError = registrationClosure(record.selected_events, [
     ...retained, ...approvedClosedEvents(record.rrn),
   ]);
+  if (eventError || !original) return eventError;
+  const previous = eventRrnClaims(original);
+  for (const [event, rrns] of eventRrnClaims(record)) {
+    if ([...rrns].some(rrn => !previous.get(event)?.has(rrn))) {
+      const participantError = registrationClosure([event]);
+      if (participantError) return participantError;
+    }
+  }
+  return null;
 }
