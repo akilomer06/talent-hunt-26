@@ -4,6 +4,7 @@ import { buildEventRosters, type EventParticipant } from './participantExports';
 import { normalizeYear } from './academicCounts';
 import type { EventGroup } from './participationViews';
 import type { TeamMember } from './supabase';
+import attendanceCollegeLogo from '../assets/attendance-college-logo.png?inline';
 
 type ExportEvent = { id: string; title: string; category?: string; number?: string };
 const navy = 'FF0F172A';
@@ -147,24 +148,28 @@ export function buildEventGroupsWorkbook(event: ExportEvent, groups: EventGroup[
 export function buildEventAttendanceWorkbook(event: ExportEvent, groups: EventGroup[], unassignedCount = 0, now = new Date()) {
   const workbook = newWorkbook(now);
   const black = 'FF000000';
+  const attendanceHeaderRow = 8;
+  const writingRowHeight = 28;
+  const margins = { left: 0.2, right: 0.2, top: 0.2, bottom: 0.25, header: 0.05, footer: 0.1 };
   const columns = [
     ['Team No.', 7], ['Team / Pass ID', 23], ['Event', 18], ['Role', 17], ['Name', 27], ['RRN', 18],
     ['Phone', 15], ['Programme', 12], ['Year', 7], ['Department', 16], ['Section', 8], ['Signature', 25],
   ] as const;
   const sheet = workbook.addWorksheet('Attendance and Signatures', {
-    properties: { defaultRowHeight: 36 },
-    views: [{ state: 'frozen', ySplit: headerRow, showGridLines: false }],
+    properties: { defaultRowHeight: writingRowHeight },
+    views: [{ state: 'frozen', ySplit: attendanceHeaderRow, showGridLines: false }],
     pageSetup: {
       paperSize: 9, orientation: 'landscape', blackAndWhite: true,
-      fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:5',
-      margins: { left: 0.25, right: 0.25, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.15 },
+      fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `1:${attendanceHeaderRow}`,
+      horizontalCentered: true,
+      margins,
     },
   });
   sheet.columns = columns.map(([, width]) => ({ width }));
   const styleRow = (number: number, values: CellValue[], heading = false) => {
     const row = sheet.getRow(number);
     row.values = values;
-    row.height = heading ? 30 : 36;
+    row.height = heading ? 28 : writingRowHeight;
     for (let column = 1; column <= columns.length; column++) {
       const cell = row.getCell(column);
       cell.font = { name: 'Arial', size: 11, bold: heading, color: { argb: black } };
@@ -181,54 +186,110 @@ export function buildEventAttendanceWorkbook(event: ExportEvent, groups: EventGr
     const cell = sheet.getCell(number, 1);
     cell.value = text;
     cell.font = { name: 'Arial', size, bold, color: { argb: black } };
-    cell.alignment = { vertical: 'middle', wrapText: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     sheet.getRow(number).height = height;
   };
-  sheet.getRow(1).height = 8;
-  note(2, `${event.title} — Attendance & Signature Sheet`, 16, true, 28);
+  sheet.getRow(1).height = 6;
+  sheet.getRow(2).height = 88;
+  const logoWidth = 400;
+  const logoHeight = logoWidth * 653 / 2363;
+  // Native offsets place the logo in the centre of the complete print area.
+  const widths = columns.map(([, width]) => width * 7 + 5);
+  let logoLeft = (widths.reduce((sum, width) => sum + width, 0) - logoWidth) / 2;
+  let logoColumn = 0;
+  while (logoLeft >= widths[logoColumn]!) logoLeft -= widths[logoColumn++]!;
+  const image = workbook.addImage({ base64: attendanceCollegeLogo, extension: 'png' });
+  const anchor = { col: logoColumn, row: 1, nativeCol: logoColumn, nativeColOff: Math.round(logoLeft * 9525), nativeRow: 1, nativeRowOff: 3 * 9525 };
+  sheet.addImage(image, { tl: anchor, ext: { width: logoWidth, height: logoHeight }, editAs: 'absolute' });
+  note(3, 'SCHOOL OF COMPUTER INFORMATION AND MATHEMATICAL SCIENCES', 14, true, 24);
+  note(4, 'DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING', 13, true, 22);
+  note(5, 'ATTENDANCE SHEET', 16, true, 26);
   const count = groups.reduce((total, group) => total + group.members.length, 0);
-  note(3, `Talent Hunt 2K26 | ${groups.length} teams/groups | ${count} registered member entries`);
-  note(4, unassignedCount
+  note(6, `${event.title} | Talent Hunt 2K26 | ${groups.length} teams/groups | ${count} registered member entries`, 11, false, 22);
+  note(7, unassignedCount
     ? `${unassignedCount} historical teammate ${unassignedCount === 1 ? 'entry needs' : 'entries need'} event assignment. See the regular Excel download's Needs review sheet.`
-    : 'Team members share a pass ID. Each student signs their own row.');
-  styleRow(headerRow, columns.map(([label]) => label), true);
-  let cursor = firstDataRow;
-  let pageHeight = 0;
-  const bodyHeight = 430;
+    : 'Team members share a pass ID. Each student signs their own row.', 10, false, 18);
+  styleRow(attendanceHeaderRow, columns.map(([label]) => label), true);
+  let cursor = attendanceHeaderRow + 1;
+  const blocks: number[][] = [];
+  const participantRows = new Set<number>();
+  const teamRows: number[][] = [];
   groups.forEach((group, groupIndex) => {
     if (!group.members.length) return;
-    const heights = group.members.map(member => Math.max(36, ...[
+    const heights = group.members.map(member => Math.max(writingRowHeight, ...[
       [member.role, 17], [member.person.name, 27], [member.person.department, 16],
-    ].map(([text, width]) => Math.ceil(String(text).length / (Number(width) - 2)) * 15 + 8)));
+    ].map(([text, width]) => Math.ceil(String(text).length / (Number(width) - 2)) * 13 + 4)));
     // The shared cells need enough combined height for long administrative pass IDs.
     const sharedHeight = Math.max(
       Math.ceil(group.record.reg_id.length / 21), Math.ceil(event.title.length / 16),
-    ) * 15 + 8;
+    ) * 12 + 4;
     heights[0] = Math.max(heights[0]!, sharedHeight - heights.slice(1).reduce((sum, height) => sum + height, 0));
-    const groupHeight = heights.reduce((sum, height) => sum + height, 0);
-    if (pageHeight && pageHeight + groupHeight > bodyHeight) {
-      sheet.getRow(cursor - 1).addPageBreak();
-      pageHeight = 0;
-    }
-    const start = cursor;
+    const rows: number[] = [];
     group.members.forEach((member, index) => {
       const person = member.person;
+      rows.push(cursor);
+      participantRows.add(cursor);
       const row = styleRow(cursor++, [
-        index ? null : groupIndex + 1, index ? null : group.record.reg_id, index ? null : event.title,
+        groupIndex + 1, group.record.reg_id, event.title,
         member.role, person.name, person.rrn, person.mobile, person.programme, person.year, person.department, person.section || null, null,
       ]);
       row.height = heights[index]!;
+      row.getCell(2).font = { name: 'Arial', size: 10, color: { argb: black } };
     });
-    if (cursor - start > 1) for (const column of [1, 2, 3]) sheet.mergeCells(start, column, cursor - 1, column);
-    pageHeight += groupHeight;
+    blocks.push(rows);
+    teamRows.push(rows);
   });
-  if (!count) { note(cursor++, 'No online registrations for this event.'); pageHeight += 22; }
-  sheet.getRow(cursor++).height = 12;
-  // Keep the labelled walk-in section and its ten writing rows on the same page.
-  if (pageHeight + 12 + 26 + 30 + 10 * 36 > bodyHeight) sheet.getRow(cursor - 1).addPageBreak();
+  if (!count) { note(cursor, 'No online registrations for this event.'); blocks.push([cursor++]); }
+  const walkInStart = cursor;
+  sheet.getRow(cursor++).height = 6;
   note(cursor++, 'On-the-spot registration — 10 additional participant rows', 12, true, 26);
   styleRow(cursor++, columns.map(([label]) => label), true);
-  for (let index = 0; index < 10; index++) styleRow(cursor++, Array<CellValue>(columns.length).fill(null));
+  for (let index = 0; index < 10; index++) {
+    participantRows.add(cursor);
+    styleRow(cursor++, Array<CellValue>(columns.length).fill(null));
+  }
+  blocks.push(Array.from({ length: cursor - walkInStart }, (_, index) => walkInStart + index));
+
+  // Calculate page capacity at the fitted paper width, then distribute spare
+  // height across signing rows. This fills pages without splitting normal teams.
+  const scale = (841.89 - (margins.left + margins.right) * 72) / (widths.reduce((sum, width) => sum + width, 0) * 0.75);
+  const titleHeight = Array.from({ length: attendanceHeaderRow }, (_, i) => sheet.getRow(i + 1).height!).reduce((sum, height) => sum + height, 0);
+  const pageCapacity = Math.floor((595.28 - (margins.top + margins.bottom) * 72) / scale - titleHeight - 3);
+  const pages: number[][] = [];
+  let page: number[] = [];
+  let usedHeight = 0;
+  const addBlock = (rows: number[]) => {
+    const height = rows.reduce((sum, row) => sum + sheet.getRow(row).height!, 0);
+    if (page.length && usedHeight + height > pageCapacity) { pages.push(page); page = []; usedHeight = 0; }
+    page.push(...rows);
+    usedHeight += height;
+  };
+  for (const rows of blocks) {
+    const height = rows.reduce((sum, row) => sum + sheet.getRow(row).height!, 0);
+    if (height > pageCapacity) rows.forEach(row => addBlock([row]));
+    else addBlock(rows);
+  }
+  if (page.length) pages.push(page);
+  const pageOfRow = new Map<number, number>();
+  pages.forEach((rows, index) => {
+    const height = rows.reduce((sum, row) => sum + sheet.getRow(row).height!, 0);
+    const writingRows = rows.filter(row => participantRows.has(row));
+    const extra = writingRows.length ? Math.max(0, pageCapacity - height) / writingRows.length : 0;
+    rows.forEach(row => pageOfRow.set(row, index));
+    writingRows.forEach(row => { sheet.getRow(row).height = Math.floor((sheet.getRow(row).height! + extra) * 100) / 100; });
+    if (index < pages.length - 1) sheet.getRow(rows[rows.length - 1]!).addPageBreak();
+  });
+  // Repeat a shared ID if an unusually large historical team spans pages.
+  for (const rows of teamRows) {
+    let start = rows[0]!;
+    for (let index = 1; index <= rows.length; index++) {
+      if (index === rows.length || pageOfRow.get(rows[index]!) !== pageOfRow.get(start)) {
+        const end = rows[index - 1]!;
+        if (end > start) for (const column of [1, 2, 3]) sheet.mergeCells(start, column, end, column);
+        start = rows[index]!;
+      }
+    }
+  }
   sheet.pageSetup.printArea = `A1:L${cursor - 1}`;
   sheet.headerFooter.oddFooter = '&LTalent Hunt 2K26&RPage &P of &N';
   return workbook;

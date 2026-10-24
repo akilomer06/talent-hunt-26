@@ -22,52 +22,86 @@ describe('organized Excel workbooks', () => {
     expect(saved.worksheets).toHaveLength(1);
     const sheet = saved.worksheets[0]!;
     expect(sheet.columnCount).toBe(12);
-    expect(sheet.getRow(5).values).toEqual([undefined, 'Team No.', 'Team / Pass ID', 'Event', 'Role', 'Name', 'RRN', 'Phone', 'Programme', 'Year', 'Department', 'Section', 'Signature']);
-    expect(sheet.getCell('B7').master.address).toBe('B6');
-    expect(sheet.getCell('C7').master.address).toBe('C6');
-    expect(sheet.getCell('B8').value).toBe(duplicate.reg_id);
-    expect(sheet.getCell('B9').master.address).toBe('B8');
-    expect(sheet.getCell('L7').isMerged).toBe(false);
-    expect(sheet.getCell('F6').value).toBe(records[0]!.rrn);
-    expect(sheet.getCell('G6').value).toBe('0123456789');
-    expect(sheet.getCell('F6').numFmt).toBe('@');
-    expect(sheet.getCell('E7').value).toBe('=Not a formula');
-    expect(sheet.getCell('E7').type).toBe(ExcelJS.ValueType.String);
-    expect(sheet.getCell('A4').text).toContain('1 historical teammate entry needs event assignment');
-    const walkInRow = 11;
+    expect(sheet.getRow(8).values).toEqual([undefined, 'Team No.', 'Team / Pass ID', 'Event', 'Role', 'Name', 'RRN', 'Phone', 'Programme', 'Year', 'Department', 'Section', 'Signature']);
+    expect(sheet.getCell('B10').master.address).toBe('B9');
+    expect(sheet.getCell('C10').master.address).toBe('C9');
+    expect(sheet.getCell('B11').value).toBe(duplicate.reg_id);
+    expect(sheet.getCell('B12').master.address).toBe('B11');
+    expect(sheet.getCell('L10').isMerged).toBe(false);
+    expect(sheet.getCell('F9').value).toBe(records[0]!.rrn);
+    expect(sheet.getCell('G9').value).toBe('0123456789');
+    expect(sheet.getCell('F9').numFmt).toBe('@');
+    expect(sheet.getCell('E10').value).toBe('=Not a formula');
+    expect(sheet.getCell('E10').type).toBe(ExcelJS.ValueType.String);
+    expect(sheet.getCell('A7').text).toContain('1 historical teammate entry needs event assignment');
+    expect(sheet.getCell('A3').value).toBe('SCHOOL OF COMPUTER INFORMATION AND MATHEMATICAL SCIENCES');
+    expect(sheet.getCell('A4').value).toBe('DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING');
+    expect(sheet.getCell('A5').value).toBe('ATTENDANCE SHEET');
+    for (const address of ['A3', 'A4', 'A5', 'A6']) expect(sheet.getCell(address).alignment.horizontal).toBe('center');
+    expect(sheet.getImages()).toHaveLength(1);
+    expect(saved.getImage(0).extension).toBe('png');
+    expect(workbook.getImage(0).base64).toMatch(/^data:image\/png;base64,/);
+    const walkInRow = 14;
     expect(sheet.getCell(walkInRow, 1).text).toContain('On-the-spot registration');
     expect(sheet.getCell(walkInRow, 1).text).toContain('10 additional participant rows');
     expect(sheet.getCell(walkInRow + 1, 12).value).toBe('Signature');
     expect(sheet.rowCount).toBe(walkInRow + 11);
     for (let row = walkInRow + 2; row <= sheet.rowCount; row++) {
-      expect(sheet.getRow(row).height).toBeGreaterThanOrEqual(36);
+      expect(sheet.getRow(row).height).toBeGreaterThanOrEqual(28);
       for (let col = 1; col <= 12; col++) {
         expect(sheet.getCell(row, col).value).toBeNull();
         expect(sheet.getCell(row, col).isMerged).toBe(false);
         expect(sheet.getCell(row, col).border.bottom?.style).toBe('thin');
       }
     }
-    for (let row = 6; row <= 9; row++) expect(sheet.getCell(row, 12).value).toBeNull();
+    for (let row = 9; row <= 12; row++) expect(sheet.getCell(row, 12).value).toBeNull();
     sheet.eachRow(row => row.eachCell({ includeEmpty: true }, cell => {
       if (cell.font.color?.argb) expect(cell.font.color.argb).toBe('FF000000');
       if (cell.fill.type === 'pattern' && cell.fill.fgColor?.argb) expect(cell.fill.fgColor.argb).toBe('FFFFFFFF');
       for (const border of Object.values(cell.border)) if (border?.color?.argb) expect(border.color.argb).toBe('FF000000');
     }));
-    expect(sheet.pageSetup).toMatchObject({ blackAndWhite: true, orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, printArea: 'A1:L22', printTitlesRow: '1:5' });
+    expect(sheet.pageSetup).toMatchObject({ blackAndWhite: true, orientation: 'landscape', horizontalCentered: true, fitToWidth: 1, fitToHeight: 0, printArea: 'A1:L25', printTitlesRow: '1:8' });
     expect(JSON.stringify(groups)).toBe(before);
   });
   it('offers ten writable walk-in rows for empty events and retains BGMI substitute roles', () => {
     const empty = buildEventAttendanceWorkbook(events[2]!, []).worksheets[0]!;
-    expect(empty.getCell('A6').value).toBe('No online registrations for this event.');
-    expect(empty.getCell('A8').text).toContain('On-the-spot registration');
-    expect(empty.rowCount).toBe(19);
+    expect(empty.getCell('A9').value).toBe('No online registrations for this event.');
+    expect(empty.getCell('A11').text).toContain('On-the-spot registration');
+    expect(empty.rowCount).toBe(22);
     const bgmi = { ...records[0]!, selected_events: ['bgmi'], section: '', team_members: [1, 2, 3, 4].map(n => ({ ...records[0]!.team_members[0]!, rrn: String(n), event_id: 'bgmi' })) };
     const groups = buildEventGroups([bgmi]).events.get('bgmi')!;
     const sheet = buildEventAttendanceWorkbook({ id: 'bgmi', title: 'BGMI Championship' }, groups).worksheets[0]!;
-    expect(sheet.getCell('D10').value).toBe('Substitute');
-    expect(sheet.getCell('B10').master.address).toBe('B6');
-    expect(sheet.getCell('L10').isMerged).toBe(false);
-    expect(sheet.getCell('K6').value).toBeNull();
+    expect(sheet.getCell('D13').value).toBe('Substitute');
+    expect(sheet.getCell('B13').master.address).toBe('B9');
+    expect(sheet.getCell('L13').isMerged).toBe(false);
+    expect(sheet.getCell('K9').value).toBeNull();
+  });
+  it('fills the fitted page height with more teams, keeping teams and walk-in rows together', () => {
+    const large = Array.from({ length: 24 }, (_, i) => ({ ...records[0]!, reg_id: `TH26-${i}` }));
+    const groups = buildEventGroups(large).events.get('code-canvas')!;
+    const sheet = buildEventAttendanceWorkbook(events[0]!, groups).worksheets[0]!;
+    expect(sheet.model.rowBreaks.map(breakRow => breakRow.id)).toEqual([24, 40, 56]);
+    for (const [first, last] of [[9, 24], [25, 40], [41, 56], [57, 69]]) {
+      const total = Array.from({ length: last! - first! + 1 }, (_, i) => sheet.getRow(first! + i).height!).reduce((sum, height) => sum + height, 0);
+      expect(total).toBeGreaterThan(490);
+      expect(total).toBeLessThan(500);
+    }
+    expect(sheet.getCell('B55').value).toBe('TH26-23');
+    expect(sheet.rowCount).toBe(69);
+    expect(sheet.pageSetup.fitToHeight).toBe(0);
+  });
+  it('repeats shared IDs when an unusually large historical team must continue on another page', () => {
+    const legacy = { ...records[0]!, selected_events: ['bgmi'], team_members: Array.from({ length: 19 }, (_, i) => ({ ...records[0]!.team_members[0]!, event_id: 'bgmi', rrn: String(i) })) };
+    const groups = buildEventGroups([legacy]).events.get('bgmi')!;
+    const sheet = buildEventAttendanceWorkbook({ id: 'bgmi', title: 'BGMI Championship' }, groups).worksheets[0]!;
+    const firstBreak = sheet.model.rowBreaks[0]!.id;
+    expect(firstBreak).toBeGreaterThan(8);
+    expect(firstBreak).toBeLessThan(28);
+    expect(sheet.getCell(firstBreak, 2).master.address).toBe('B9');
+    expect(sheet.getCell(firstBreak + 1, 2).value).toBe(legacy.reg_id);
+    expect(sheet.getCell(28, 2).master.address).toBe(`B${firstBreak + 1}`);
+    expect(sheet.getCell(28, 12).isMerged).toBe(false);
+    expect(sheet.getCell(28, 5).value).toBe(legacy.team_members[18]!.name);
   });
   it('writes separate, styled event sheets and preserves text IDs, formulas, dates, filters and panes on reload', async () => {
     const workbook = buildRegistrationWorkbook(records, events, new Date('2026-10-16T09:00:00Z'));
