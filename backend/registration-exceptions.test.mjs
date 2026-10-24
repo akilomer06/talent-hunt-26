@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createApiServer } from './server.mjs';
 import { matchesPostgrestFilter } from './postgrest-test-helper.mjs';
 
-test('single FIFA exception requires main admin and preserves closure, uniqueness and event limits', async () => {
+for (const rrn of ['240181601070', '240071603001']) test(`FIFA exception for ${rrn} requires main admin and preserves closure, uniqueness and event limits`, async () => {
   const rows = new Map();
   let writes = 0;
   const server = createApiServer({
@@ -33,7 +33,7 @@ test('single FIFA exception requires main admin and preserves closure, uniquenes
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const post = (path, body, token) => fetch(base + path, { method: 'POST', headers: token ? { Authorization: 'Bearer ' + token } : {}, body: JSON.stringify(body) });
-  const draft = { reg_id: 'UNTRUSTED', name: 'Test Student', rrn: '240181601070', mobile: '9000000000', programme: 'B.Tech', year: 'III', department: 'Cybersecurity', section: '', selected_events: ['fifa'], team_members: [], request_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' };
+  const draft = { reg_id: 'UNTRUSTED', name: 'Test Student', rrn, mobile: '9000000000', programme: 'B.Tech', year: 'III', department: 'CSE', section: 'A', selected_events: ['fifa'], team_members: [], request_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' };
   try {
     const { token } = await (await post('/api/admin/login', { passcode: 'main-test' })).json();
     const { token: teamToken } = await (await post('/api/adminregistration/login', { passcode: 'team-test' })).json();

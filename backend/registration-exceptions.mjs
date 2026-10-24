@@ -1,8 +1,10 @@
 import { closedRegistrationError, normalizeRrn } from '../shared/registrationRules.ts';
 
-// A single main-admin exception. Never applied to the public registration route.
+// Main-admin exceptions for the approved participants only. Never applied publicly.
+const fifaExceptionRrns = new Set(['240181601070', '240071603001']);
+
 export function approvedClosedEvents(rrn) {
-  return typeof rrn === 'string' && normalizeRrn(rrn) === '240181601070' ? ['fifa'] : [];
+  return typeof rrn === 'string' && fifaExceptionRrns.has(normalizeRrn(rrn)) ? ['fifa'] : [];
 }
 
 export function adminClosedRegistrationError(record, original) {
