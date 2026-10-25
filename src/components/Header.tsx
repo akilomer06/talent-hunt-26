@@ -1,4 +1,4 @@
-import { Link, useRouterState } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Menu, ArrowUpRight, Sun, Moon, Gamepad2 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -19,8 +19,6 @@ interface HeaderProps {
 }
 export function Header({ theme = 'paper', onToggleTheme }: HeaderProps) {
   const [open, setOpen] = useState(false);
-  const path = useRouterState({ select: s => s.location.pathname });
-  const onRegister = path.replace(/\/$/, '') === '/register';
   const next = theme === 'paper' ? 'Dark' : theme === 'dark' ? 'Game' : 'Paper';
   const ThemeIcon = theme === 'paper' ? Moon : theme === 'dark' ? Gamepad2 : Sun;
   return <header className="site-header">
@@ -37,7 +35,6 @@ export function Header({ theme = 'paper', onToggleTheme }: HeaderProps) {
       </nav>
       <div className="site-header-actions">
         <Button variant="festivalGhost" size="icon" onClick={onToggleTheme} aria-label={`Switch theme (now ${theme}, next ${next})`} title={`Switch to ${next} theme`}><ThemeIcon/></Button>
-        {!onRegister && <Button asChild variant="festival" className="header-register"><Link to="/register">Register Trashion <ArrowUpRight/></Link></Button>}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild><Button variant="festivalGhost" className="header-menu" aria-label="Open menu"><span>Menu</span><Menu/></Button></SheetTrigger>
           <SheetContent className="navigation-sheet">

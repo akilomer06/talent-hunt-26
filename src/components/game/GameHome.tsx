@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Play, Crosshair, Users, Swords, Trophy, MapPin, CalendarDays, Gamepad2, Zap, Search, ArrowUpRight } from 'lucide-react';
+import { Crosshair, Users, Trophy, MapPin, CalendarDays, Gamepad2, Zap, Search, ArrowUpRight } from 'lucide-react';
 import { EVENTS } from '../../data/eventsData';
 import { useCountdown } from '../../hooks/useCountdown';
 import logoImg from '../../assets/talent-hunt-logo-white.png';
@@ -11,6 +11,7 @@ import { GameCursor } from './GameCursor';
 import { InstitutionalBanner } from '../InstitutionalBanner';
 import { isEventRegistrationClosed } from '../../lib/registration';
 import { brochureUrl as posterImg, downloadBrochure } from '../../lib/brochure';
+import { ON_SPOT_REGISTRATION_NOTICE } from '../../../shared/registrationRules';
 
 type Mode = 'all' | 'technical' | 'non-technical';
 
@@ -30,7 +31,7 @@ function HudCountdown() {
   );
 }
 
-export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () => void; onOpenEvent: (id: string) => void; track?: 'technical' | 'non-technical' }) {
+export function GameHome({ onOpenEvent, track }: { onRegister: () => void; onOpenEvent: (id: string) => void; track?: 'technical' | 'non-technical' }) {
   const [posterOpen, setPosterOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<Mode>(track ?? 'all');
@@ -61,7 +62,6 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
           <HudCountdown />
 
           <div className="gm-actions">
-            <Button variant="game" className="gm-btn gm-btn-primary" onClick={onRegister}><Play className="w-4 h-4" /> REGISTER TRASHION</Button>
             <Button variant="game" className="gm-btn gm-btn-ghost" onClick={scrollToLevels}><Crosshair className="w-4 h-4" /> SELECT LEVEL</Button>
           </div>
           <Button variant="game" className="gm-brochure-link" onClick={() => setPosterOpen(true)} aria-label="Open official brochure">Official brochure <Zap className="w-4 h-4" /></Button>
@@ -127,7 +127,7 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
           {[
             [Crosshair, 'PICK A LEVEL', 'Browse the 16 events and open the one you want to conquer.'],
             [Users, 'BUILD YOUR PARTY', 'Go solo or squad up — check each level for team size.'],
-            [Swords, 'REGISTER', 'Lock in your spot before the countdown hits zero.'],
+            [MapPin, 'CHECK YOUR VENUE', 'Online registration is closed. Ask event coordinators about on-the-spot availability.'],
             [Trophy, 'CLAIM THE LOOT', 'Top players win prizes and bragging rights.'],
           ].map(([Icon, t, d], i) => {
             const I = Icon as typeof Crosshair;
@@ -147,9 +147,8 @@ export function GameHome({ onRegister, onOpenEvent, track }: { onRegister: () =>
       <section className="gm-section">
         <div className="gm-boss">
           <p className="gm-chip">⚠ FINAL STAGE</p>
-          <h2 className="gm-pixel gm-h2">READY, PLAYER ONE?</h2>
-          <p>The arena opens on 26 October 2026. Save your slot now.</p>
-          <Button variant="game" className="gm-btn gm-btn-primary" onClick={onRegister}><Play className="w-4 h-4" /> REGISTER TRASHION</Button>
+          <h2 className="gm-pixel gm-h2">ONLINE REGISTRATION CLOSED</h2>
+          <p>{ON_SPOT_REGISTRATION_NOTICE}</p>
         </div>
       </section>
       </>}
