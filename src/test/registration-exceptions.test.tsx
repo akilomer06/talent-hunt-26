@@ -13,8 +13,7 @@ it('cannot use a former FIFA exception or create a preselected closed event', ()
   render(<RegistrationEditor request={{ initial: draft }} events={EVENTS} onClose={vi.fn()} onSaved={vi.fn()} />);
   expect(screen.queryByRole('button', { name: 'Check closed-event exception' })).not.toBeInTheDocument();
   expect(screen.getAllByRole('checkbox')).toHaveLength(16);
-  expect(screen.getByRole('checkbox', { name: /^Trashion/ })).toBeEnabled();
-  screen.getAllByRole('checkbox').filter(checkbox => checkbox !== screen.getByRole('checkbox', { name: /^Trashion/ })).forEach(checkbox => expect(checkbox).toBeDisabled());
+  screen.getAllByRole('checkbox').forEach(checkbox => expect(checkbox).toBeDisabled());
   fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Online registration is closed for this event');
   expect(api.createAdminRegistration).not.toHaveBeenCalled();

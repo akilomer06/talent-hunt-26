@@ -1,4 +1,4 @@
-import { ON_SPOT_REGISTRATION_NOTICE } from '../../shared/registrationRules';
+import { ON_SPOT_REGISTRATION_NOTICE, ONLINE_REGISTRATION_CLOSED, OPEN_REGISTRATION_EVENTS, REGISTRATION_STATUS_MESSAGE } from '../../shared/registrationRules';
 import { EventVenueDirectory } from '../components/EventVenueDirectory';
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Check, CheckCircle2, Download, Plus, X } from 'lucide-react';
@@ -157,7 +157,7 @@ const PersonFields: React.FC<{
 export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBack }) => {
   const { events } = useLiveContent();
   const [me, setMe] = useState<Person>(emptyPerson);
-  const [selected, setSelected] = useState<string[]>(['trashion']);
+  const [selected, setSelected] = useState<string[]>([...OPEN_REGISTRATION_EVENTS]);
   const [teams, setTeams] = useState<Record<string, Person[]>>({});
   const hasDetails = (person: Person) => Object.values(person).some(value => value.trim().length > 0);
   const team = selected.flatMap(id => (teams[id] || []).filter(hasDetails).map(person => ({ ...person, event_id: id })));
@@ -224,7 +224,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
 
   const reset = () => {
     setMe(emptyPerson());
-    setSelected(['trashion']);
+    setSelected([...OPEN_REGISTRATION_EVENTS]);
     setTeams({});
     setSubmitted(false);
   };
@@ -232,6 +232,25 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ initialEventId, onBa
   const groups: { key: EventCategory; title: string }[] = [
     { key: 'non-technical', title: 'Open event' },
   ];
+
+  if (ONLINE_REGISTRATION_CLOSED) return (
+    <div className="register-reading reg-page">
+      <div className="reg-wrap">
+        <button onClick={onBack} className="reg-back"><ArrowLeft className="w-4 h-4" /> Back</button>
+        <header className="reg-head">
+          <p className="reg-kicker">Registration · 26 October 2026</p>
+          <h1>Online registration is closed</h1>
+          <p className="reg-lede">{REGISTRATION_STATUS_MESSAGE}</p>
+        </header>
+        <aside className="reg-support" aria-label="Registration help">
+          <p>{ON_SPOT_REGISTRATION_NOTICE}</p>
+          <p>Visit the respective event venue on 26 October 2026 and speak to the coordinators. Bring your Crescent Student ID.</p>
+          <p>Need help? Contact <a href="tel:+917338985189">Vijay Hari · +91 733 898 5189</a>.</p>
+        </aside>
+        <div className="mt-10"><EventVenueDirectory /></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="register-reading reg-page">

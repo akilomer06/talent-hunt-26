@@ -43,11 +43,11 @@ export const normalizeRrn = (value: string) => value.replace(/\s+/g, '').toUpper
 
 export const REGISTRATION_HELP = 'For help, contact Vijay Hari at +91 733 898 5189.';
 
-export const OPEN_REGISTRATION_EVENTS: readonly string[] = ['trashion'];
+export const OPEN_REGISTRATION_EVENTS: readonly string[] = [];
 export const ONLINE_REGISTRATION_CLOSED = OPEN_REGISTRATION_EVENTS.length === 0;
-export const REGISTRATION_STATUS_MESSAGE = 'Online registration is open for Trashion only. All other events remain closed.';
+export const REGISTRATION_STATUS_MESSAGE = 'Online registration is closed for all events.';
 export const ON_SPOT_REGISTRATION_NOTICE = 'On-the-spot registration may be available on campus at the respective event venue, depending on the number of students already registered and the remaining capacity for that event. Please check with the event coordinators. A place is not guaranteed.';
-export const REGISTRATION_CLOSED_MESSAGE = `Online registration is closed for this event. Only Trashion remains open online. ${ON_SPOT_REGISTRATION_NOTICE}`;
+export const REGISTRATION_CLOSED_MESSAGE = `Online registration is closed for this event. ${ON_SPOT_REGISTRATION_NOTICE}`;
 export const CLOSED_REGISTRATION_EVENTS: readonly string[] = Object.keys(TEAM_RULES).filter(id => !OPEN_REGISTRATION_EVENTS.includes(id));
 export const isEventRegistrationClosed = (eventId: string) => !OPEN_REGISTRATION_EVENTS.includes(eventId);
 export function closedRegistrationError(selected: string[], existing: string[] = []): string | null {
